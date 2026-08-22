@@ -1,0 +1,3 @@
+:root { --panel: rgba(11, 13, 16, 0.82); --line: #2a2f36; --ink: #e8e4da; --mute: #9aa3b8; --gold: #d9a441; --green: #3fb27f; --red: #c8413b; --blue: #5b8def; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #0f1420; color: var(--ink); font-family: Archivo, system-ui, sans-serif; }
+#app { position: fixed; inset: 0; }

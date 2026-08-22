@@ -1,0 +1,41 @@
+[project]
+name = "vitabench"
+version = "0.1.0"
+description = "A long-horizon agent benchmark: your agent lives one life in a real city at a real moment in history."
+requires-python = ">=3.12"
+license = "MIT"
+dependencies = [
+  "pydantic>=2.7",
+  "pyyaml>=6",
+  "numpy>=2",
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+  "websockets>=13",
+  "httpx>=0.27",
+  "anthropic>=0.40",
+  "mcp>=1.2",
+  "typer>=0.12",
+]
+
+[project.scripts]
+vitabench = "vitabench.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["vitabench"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
