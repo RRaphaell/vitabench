@@ -1,0 +1,13 @@
+runs/*
+!runs/demo/
+!runs/demo/**
+web/public/assets/
+web/node_modules/
+web/dist/
+engine/.venv/
+engine/**/__pycache__/
+engine/.pytest_cache/
+engine/.ruff_cache/
+.env
+.DS_Store
+*.log
