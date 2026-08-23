@@ -128,8 +128,8 @@
     "H_life_mean": 0.6182,
     "chance": 0.33,
     "chance_source": "default (2 mock:random probes, need 8)",
-    "cost_usd": 1.477517,
-    "cost": 1.477517,
+    "cost_usd": 3.848992,
+    "cost": 3.848992,
     "ci": {
       "H": [
         0.5352,
@@ -194,8 +194,8 @@
     "H_life_mean": 0.5405,
     "chance": 0.33,
     "chance_source": "default (2 mock:random probes, need 8)",
-    "cost_usd": 0.0,
-    "cost": 0.0,
+    "cost_usd": 5.7084,
+    "cost": 5.7084,
     "ci": {
       "H": [
         0.4372,
@@ -311,8 +311,8 @@
     "H_life_mean": 0.4631,
     "chance": 0.33,
     "chance_source": "default (2 mock:random probes, need 8)",
-    "cost_usd": 0.0,
-    "cost": 0.0,
+    "cost_usd": 3.8196,
+    "cost": 3.8196,
     "ci": {
       "H": [
         0.2841,

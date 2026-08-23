@@ -3,10 +3,10 @@
 | harness | model | n | H [95% CI] | M | N | L | $/life |
 |---|---|--:|---|--:|--:|--:|--:|
 | mock:sensible | mock | 6 | 0.598 [0.571, 0.612] | 0.440 | 0.944 | 0.600 | $0.0000 |
-| claude-code | claude-sonnet-5 | 12 | 0.581 [0.535, 0.633] | 0.449 | 1.000 | 0.421 | $1.4775 |
-| claude-code/caterina | claude-sonnet-5 | 2 | 0.437 [0.437, 0.641] | 0.189 | 1.000 | 0.416 | $0.0000 |
+| claude-code | claude-sonnet-5 | 12 | 0.581 [0.535, 0.633] | 0.449 | 1.000 | 0.421 | $3.8490 |
+| claude-code/caterina | claude-sonnet-5 | 2 | 0.437 [0.437, 0.641] | 0.189 | 1.000 | 0.416 | $5.7084 |
 | mock:goldfish | mock | 6 | 0.287 [0.287, 0.287] | 0.000 | 0.667 | 0.600 | $0.0000 |
-| claude-code | claude-opus-5 | 1 | 0.284 [0.284, 0.284] | 0.254 | — | 0.368 | $0.0000 |
+| claude-code | claude-opus-5 | 1 | 0.284 [0.284, 0.284] | 0.254 | — | 0.368 | $3.8196 |
 | mock:random | mock | 6 | 0.234 [0.031, 0.793] | 0.254 | — | 0.180 | $0.0000 |
 
 ## Memory pass rate by delay (raw; chance 0.33 from default (2 mock:random probes, need 8))
