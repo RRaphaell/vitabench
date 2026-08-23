@@ -9,7 +9,7 @@ const require = createRequire(import.meta.url);
 const { chromium } = require('/Users/raphaelkalandadze/.hermes/hermes-agent/node_modules/playwright');
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const WEB = resolve(HERE, '../web');
+const SITE = resolve(HERE, '../site');
 const runDir = resolve(process.cwd(), process.argv[2] ?? '../runs/demo');
 const baseUrl = process.argv[3] ?? 'http://localhost:5173';
 const runId = basename(runDir);
@@ -36,9 +36,9 @@ let server = null;
 let origin = baseUrl;
 if (!(await servesViewer(origin))) {
   const port = await freePort();
-  origin = `http://localhost:${port}`;
-  server = spawn('npx', ['vite', 'preview', '--port', String(port), '--strictPort'], {
-    cwd: WEB,
+  origin = `http://localhost:${port}/app`;
+  server = spawn('python3', ['-m', 'http.server', String(port), '--bind', '127.0.0.1'], {
+    cwd: SITE,
     stdio: 'ignore',
     detached: true,
   });
@@ -48,7 +48,7 @@ if (!(await servesViewer(origin))) {
     up = await servesViewer(origin);
   }
   if (!up) {
-    console.error(`preview server did not start at ${origin}`);
+    console.error(`site server did not start at ${origin} (run scripts/build_site.sh first)`);
     try {
       process.kill(-server.pid);
     } catch {
