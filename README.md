@@ -66,6 +66,7 @@ The demo life (`runs/demo`, seed 2): 61 years, memory 5/8, false claims 3/3, $2.
 - Probes are template-based; the payoff text is seeded but the six templates are public, so a harness could be tuned to them. Hidden test seeds and new templates are the next step.
 - "Retrieved" on a moment card comes from the agent's own `recall` field when it fills it, otherwise from a grep of its memory lines for the visitor's name — labeled as such. It is evidence of what the harness held, not a causal trace.
 - The world v0 double-counted the 1348 price shock (fixed in v1 before the leaderboard runs; v0 traces are kept under `runs/v0/`).
+- Lives recorded through the live server tonight were not stopped at the 40-year horizon (a few Marcos and one Caterina lived on to old age); probes end at year 40 and life quality caps years at 40, so no score is affected. The engine now enforces the cap.
 - Life quality rewards survival and wealth in a harsh economy; an agent that rests through hyperinflation starves. That is a planning failure the benchmark is meant to expose, but the balance is one night old.
 
 ## Repo
