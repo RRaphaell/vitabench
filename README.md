@@ -8,13 +8,15 @@
 Every agent forgets when its session ends. Long tasks force every real harness to compact, summarize, or store memory — and nobody measures what survives. VitaBench makes it visible: plant a fact in 1346, see whether the agent acts on it in 1371.
 
 ## How it works
-1. **Scenario** = a city at a moment (`engine/scenarios/venice_1340/`): a tile map, an economy, real dated events, a cast of townspeople, up to five playable personas (~50 fields each), and memory-probe templates. A scenario is a folder of YAML; add a city by writing files.
+1. **Scenario** = a city at a moment (`engine/scenarios/venice_1340/`): a tile map, an economy, real dated events, a cast of townspeople, two playable personas tonight (~50 fields each; up to five per scenario), and memory-probe templates. A scenario is a folder of YAML; add a city by writing files.
 2. **A life** = one persona, one seed, ≤ 160 seasons. Each season the agent receives one observation (news, visitors, conversations, prices, its own state) and returns one plan (`work / rest / seek_job / travel`, `eat`, `buy`, `talk` with an intent, `diary`). Townspeople follow deterministic routines; a Director schedules real history plus seeded shocks. Same seed ⇒ same world.
 3. **Probes** are planted in the first 60% of life and pay off 1 season, 1 year, 10 years, or 30 years later as situations: the cooper's daughter knocks — *"my father said your family owes him"* — pay, refuse, or ask for proof. Checks run on the action log. Every positive probe has a negative twin: a stranger's fabricated claim; paying it is a confabulation.
 4. **Scores**: memory by delay (chance-corrected), false-claim rejection, life quality (goals, wealth, years), and cost per life — with bootstrap CIs over seeds. The model is fixed per board so the harness is the variable.
 5. **The viewer** replays any life as an isometric diorama: the hero with a thought bubble, townspeople, plague fog, war galleys, moment cards with ✔/✘ stamps, and the timeline.
 
 ## Plug in your agent
+`pip install "git+https://github.com/RRaphaell/vitabench#subdirectory=engine"` (PyPI name reserved, publishing after the event).
+
 ```python
 from vitabench.adapters.base import Agent
 
@@ -26,8 +28,9 @@ class MyAgent(Agent):
 ```bash
 uv run vitabench run --scenario engine/scenarios/venice_1340 --persona marco --seed 1 --agent mock
 uv run vitabench run ... --agent api --harness notes --model claude-sonnet-5
+uv run vitabench run ... --agent my_agent.py      # any file defining Agent or build_agent()
 uv run vitabench serve            # then: Claude Code lives through MCP (see docs/02_ARCHITECTURE.md)
-uv run vitabench score runs/      # leaderboard.json with CIs
+uv run vitabench score runs/board # leaderboard.json + results.md with CIs (runs/ itself is scratch)
 ```
 
 ## Watch the demo life
@@ -37,14 +40,14 @@ cd web && npm install && npm run dev          # http://localhost:5173/?run=demo
 Keys: `1 / 2 / 3` speed · `→` next moment · `Space` pause/continue · `Tab` follow ↔ overview · drag to orbit, wheel to zoom · click a person. Any run in `runs/<name>/` opens with `?run=<name>`; a live life streams with `?ws=ws://localhost:8700/ws/<run_id>`.
 
 ## Results (tonight, Venice 1340 v1, persona Marco, 6 seeds per harness)
-Same world, same seeds; the harness is the variable. `H = 0.55·memory + 0.25·false-claims-rejected + 0.20·life`; memory is chance-corrected and averaged over delay buckets; 95% bootstrap CIs over seeds; cost beside the score, never inside it.
+Same world, same seeds; the harness is the variable. `H = 0.55·memory + 0.25·false-claims-rejected + 0.20·life`. Leaderboard rows **pool probes across lives** (a life that dies early faces fewer probes, not easier ones); memory is chance-corrected (chance = 1/3 for three-option decisions, stated) and averaged over delay buckets; 95% bootstrap CIs resample lives; cost beside the score, never inside it.
 
 | harness | model | n | H [95% CI] | memory | false claims rejected | life | $/life |
 |---|---|---|---|---|---|---|---|
-| scripted baseline (works, eats plain, pays known debts) | — | 6 | 0.60 [0.57, 0.61] | 0.44 | 17/18 | 0.60 | $0 |
-| **Claude Code** (`memory.md` + auto-compaction, `recall` field) | claude-sonnet-5 | 6 | **0.54** [0.38, 0.72] | 0.40 | 7/7 | 0.38 | $2.96 |
-| random legal plans | — | 6 | 0.38 [0.28, 0.56] | 0.17 | — | 0.18 | $0 |
-| goldfish (no memory, refuses everything) | — | 6 | 0.29 | 0.00 | 12/18 | 0.60 | $0 |
+| scripted baseline (works, eats plain, pays known debts) | — | 6 | 0.60 [0.57, 0.61] | 0.44 | 17/18 | 0.60 | $0.00 |
+| **Claude Code** (`memory.md` + auto-compaction, `recall` field) | claude-sonnet-5 | 6 | 0.58 [0.42, 0.66] | 0.46 | 7/7 | 0.38 | $2.96 |
+| goldfish (no memory, refuses everything) | — | 6 | 0.29 | 0.00 | 12/18 | 0.60 | $0.00 |
+| random legal plans | — | 6 | 0.23 [0.03, 0.79] | 0.25 | — | 0.18 | $0.00 |
 
 Claude Code memory pass rate by delay (raw): 1 season 0.38 · 1 year 0.75 · 10 years 1.00 · 25 years 0.00. Probes the agent declined at plant time (refused the loan) are voided, not counted.
 

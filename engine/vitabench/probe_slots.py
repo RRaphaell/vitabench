@@ -31,8 +31,11 @@ def pick_one(rng: Generator, values: list[Any]) -> Any:
     return values[int(rng.integers(0, len(values)))]
 
 
-def person(spec: ScenarioSpec, rng: Generator, pool: str, family: str | None = None) -> dict[str, str]:
-    families = spec.cast.name_pools["families"]
+def person(
+    spec: ScenarioSpec, rng: Generator, pool: str, family: str | None = None, exclude: str | None = None
+) -> dict[str, str]:
+    pool_families = spec.cast.name_pools["families"]
+    families = [f for f in pool_families if f != exclude] or pool_families
     first = pick_one(rng, spec.cast.name_pools[pool])
     house = family or pick_one(rng, families)
     return {"id": f"{slug(first)}_{slug(house)}", "name": f"{first} {house}", "family": house}
@@ -75,7 +78,7 @@ def slots_for(
     role = pick_one(rng, roles or [spec.cast.roles[0].role])
     npc = (from_roster(roster, rng, role) if roster else None) or person(spec, rng, "venetian_male")
     kin = person(spec, rng, "venetian_female", family=npc["family"])
-    stranger = person(spec, rng, "venetian_male")
+    stranger = person(spec, rng, "venetian_male", exclude=persona.name.split()[-1])
     church = pick_one(rng, [p for p in spec.map.places if p.kind == "church"])
     traded = [i for i in spec.economy.items if i.price <= 12]
     item = pick_one(rng, traded)

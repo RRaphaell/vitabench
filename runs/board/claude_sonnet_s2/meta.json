@@ -1,0 +1,11 @@
+{
+  "run_id": "r_2ae9f5",
+  "started": "2026-08-23T00:44:00+00:00",
+  "scenario": "venice_1340",
+  "persona": "marco",
+  "seed": 2,
+  "harness": "claude-code",
+  "model": "claude-sonnet-5",
+  "probes": 11,
+  "home": "/Users/raphaelkalandadze/.vitabench/homes/r_2ae9f5"
+}

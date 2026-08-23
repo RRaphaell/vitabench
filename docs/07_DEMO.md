@@ -6,10 +6,10 @@
 - **0:35** Speed 4×, bubbles change, money/health move. Memory strip fills with what the agent writes down.
 - **0:50** `→` 1344: Lucia Morosini — "I am Alvise Morosini's child, put 25 ducats in my venture." Agent refuses. ✔ REMEMBERED · 1 YEAR. *"A year earlier a Morosini sold him rotten rope. He wrote it down. When the daughter comes selling a venture, he refuses."*
 - **1:05** 1348: plague fog, empty streets, "abed with fever." *"The Black Death. Four of our six Sonnet lives died here. This one lived."*
-- **1:20** `→` 1353: Caterina Ferrer wants to buy the north field. Refuses. ✔ REMEMBERED. *"'Never sell the north field to the Ferrer' — his grandfather's oath, told by his mother. Nobody asks 'do you remember'. The check is what he did."*
+- **1:20** `→` 1353: Caterina Ferrer wants to buy the north field. Refuses. ✔ REMEMBERED. *"'Never sell the north field to the Ferrer' — a family oath he was told one season earlier. Nobody asks 'do you remember'. The check is what he did."*
 - **1:35** `→` 1354: Alvise Contarini claims a 1344 rope debt. REFUSED · ✔. *"A stranger invents a debt. Nothing in memory matches. He refuses — memory that cannot surface what never happened."*
 - **1:50** `→` 1372 / 1376: two 25-year probes — FORGOT ✘. *"Twenty-five years is where this harness breaks. Ten years it remembers every time; twenty-five, never. That's the forgetting curve."*
-- **2:05** 1378 war galleys, blockade; money to zero; 1379 end card: died at 61, memory 5/8, false claims 3/3, $6.29. *"The war bankrupted him. Honest benchmark: it shows the deaths."*
+- **2:05** 1378 war galleys, blockade; money to zero; 1379 end card: died at 61, memory 5/8, false claims 3/3, $6.29. *"The war bankrupted him. This life cost $6.29; the six-life mean is about $3 because four of them died young. Honest benchmark: it shows the deaths."*
 - **2:20** Leaderboard pill: 4 harnesses × 6 seeds, H with CIs, $/life. *"Same world, same seeds — the harness is the variable. Goldfish at the bottom, the scripted baseline at the top because it never stops working, Claude Code in between at three dollars a life."*
 - **2:40** `pip install vitabench` + the 3-function adapter. *"Twenty lines. Bring your agent. Tomorrow the board has its name."*
 - **2:55** Repo. *"VitaBench. What survives when the session ends."*

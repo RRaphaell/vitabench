@@ -6,7 +6,7 @@ from pathlib import Path
 MEMORY_FILE = "memory.md"
 RECALL_JOIN = " · "
 GREP_SOURCE = "memory-grep"
-GREP_MAX = 2
+GREP_MAX = 1
 KEY_MIN = 4
 STOPWORDS = frozenset({"the", "and", "for", "from", "san", "del", "della", "your", "said", "says"})
 

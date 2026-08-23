@@ -1,0 +1,10 @@
+{
+  "run_id": "r_90320e",
+  "started": "2026-08-23T00:44:11.018424+00:00",
+  "scenario": "venice_1340",
+  "persona": "marco",
+  "seed": 1,
+  "harness": "mock:random",
+  "model": "mock",
+  "probes": 11
+}

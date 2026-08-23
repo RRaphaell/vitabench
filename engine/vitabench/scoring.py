@@ -95,6 +95,7 @@ def score_run(records: Iterable[TraceRecord], chance: float = CHANCE_DEFAULT) ->
         "M": m,
         "M_by_delay": m_by_delay,
         "M_raw_by_delay": raw_by_delay,
+        "M_counts_by_delay": counts_by_delay,
         "N": n,
         "L": life,
         "chance": chance,
@@ -170,6 +171,10 @@ def memory_table(rows: Sequence[dict[str, Any]]) -> list[str]:
     return lines
 
 
+def _fmt(value: float | None) -> str:
+    return f"{value:.3f}" if value is not None else "—"
+
+
 def markdown_tables(rows: Sequence[dict[str, Any]]) -> str:
     lead = [
         "| harness | model | n | H [95% CI] | M | N | L | $/life |",
@@ -179,7 +184,7 @@ def markdown_tables(rows: Sequence[dict[str, Any]]) -> str:
         lo, hi = row["ci"]["H"]
         lead.append(
             f"| {row['harness']} | {row['model']} | {row['n']} | {row['H']:.3f} [{lo:.3f}, {hi:.3f}] |"
-            f" {row['M']:.3f} | {row['N']:.3f} | {row['L']:.3f} | ${row['cost_usd']:.4f} |"
+            f" {row['M']:.3f} | {_fmt(row['N'])} | {row['L']:.3f} | ${row['cost_usd']:.4f} |"
         )
     heads = " | ".join(BUCKET_LABELS[b] for b in DELAY_BUCKETS)
     delay = [f"| harness | model | {heads} | M | negatives |", "|---|---|" + "--:|" * 6]
@@ -217,7 +222,49 @@ def find_runs(root: str | Path) -> list[Path]:
     return sorted(p.parent for p in root.rglob("trace.jsonl"))
 
 
+def _pooled(entries: Sequence[dict[str, Any]], chance: float) -> dict[str, Any]:
+    hits: dict[str, int] = {}
+    totals: dict[str, int] = {}
+    for entry in entries:
+        for key, (hit, total) in (entry.get("M_counts_by_delay") or {}).items():
+            hits[key] = hits.get(key, 0) + int(hit)
+            totals[key] = totals.get(key, 0) + int(total)
+    raw = {key: round(hits[key] / totals[key], 4) for key in totals if totals[key]}
+    by_delay = {key: round(_corrected(rate, chance), 4) for key, rate in raw.items()}
+    m = round(float(np.mean(list(by_delay.values()))) if by_delay else 0.0, 4)
+    neg_x = sum(e["negatives"]["x"] for e in entries)
+    neg_y = sum(e["negatives"]["y"] for e in entries)
+    n = round(neg_x / neg_y, 4) if neg_y else None
+    life = round(float(np.mean([e["L"] for e in entries])), 4)
+    weights = dict(WEIGHTS) if n is not None else {k: v for k, v in WEIGHTS.items() if k != "N"}
+    scale = sum(weights.values())
+    h = (weights["M"] * m + weights.get("N", 0) * (n or 0.0) + weights["L"] * life) / scale
+    return {
+        "H": round(h, 4), "M": m, "M_by_delay": by_delay, "M_raw_by_delay": raw,
+        "M_counts_by_delay": {k: [hits[k], totals[k]] for k in totals}, "N": n, "L": life,
+        "negatives": {"x": neg_x, "y": neg_y},
+    }
+
+
+def _pooled_ci(entries: Sequence[dict[str, Any]], chance: float, seed: int = 0) -> dict[str, list[float]]:
+    if len(entries) < 2:
+        single = _pooled(entries, chance)
+        return {k: [single[k] or 0.0] * 2 for k in ("H", "M", "L")}
+    rng = np.random.default_rng(seed)
+    samples: dict[str, list[float]] = {"H": [], "M": [], "L": []}
+    for _ in range(BOOTSTRAP_RESAMPLES // 4):
+        picks = [entries[i] for i in rng.integers(0, len(entries), size=len(entries))]
+        pooled = _pooled(picks, chance)
+        for key in samples:
+            samples[key].append(float(pooled[key] or 0.0))
+    return {
+        key: [round(float(np.percentile(v, 2.5)), 4), round(float(np.percentile(v, 97.5)), 4)]
+        for key, v in samples.items()
+    }
+
+
 def aggregate(run_dirs: Iterable[str | Path], chance: float | None = None) -> list[dict[str, Any]]:
+    """Leaderboard rows pool probes across lives: dying early means fewer probes, not easier ones."""
     scored = [score_dir(d) for d in run_dirs]
     source = "given"
     if chance is None:
@@ -229,29 +276,19 @@ def aggregate(run_dirs: Iterable[str | Path], chance: float | None = None) -> li
         groups.setdefault((entry["harness"], entry["model"]), []).append(entry)
     leaderboard: list[dict[str, Any]] = []
     for (harness, model), entries in groups.items():
+        pooled = _pooled(entries, chance)
         row = {
             "harness": harness,
             "model": model,
             "n": len(entries),
             "seeds": sorted({e["seed"] for e in entries}, key=str),
-            "H": round(float(np.mean([e["H"] for e in entries])), 4),
-            "M": round(float(np.mean([e["M"] for e in entries])), 4),
-            "M_by_delay": _mean_by_delay(entries),
-            "M_raw_by_delay": _mean_by_delay(entries, "M_raw_by_delay"),
-            "negatives": {
-                "x": sum(e["negatives"]["x"] for e in entries),
-                "y": sum(e["negatives"]["y"] for e in entries),
-            },
+            **pooled,
+            "H_life_mean": round(float(np.mean([e["H"] for e in entries])), 4),
             "chance": chance,
             "chance_source": source,
-            "N": round(float(np.mean([e["N"] for e in entries])), 4),
-            "L": round(float(np.mean([e["L"] for e in entries])), 4),
             "cost_usd": round(float(np.mean([e["cost_usd"] for e in entries])), 6),
             "cost": round(float(np.mean([e["cost_usd"] for e in entries])), 6),
-            "ci": {
-                key: _bootstrap_ci([e[key] for e in entries])
-                for key in ("H", "M", "N", "L")
-            },
+            "ci": _pooled_ci(entries, chance),
         }
         leaderboard.append(row)
     leaderboard.sort(key=lambda r: r["H"], reverse=True)

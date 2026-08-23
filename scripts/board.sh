@@ -34,6 +34,7 @@ PY
 copy_run() {
   local src="$1" name="$2" claude="${3:-}" dest="$BOARD/$2" from
   from="$(trace_dir "$src")" || { echo "skip $name (no trace yet)"; return 0; }
+  grep -q '"kind": "death"' "$from/trace.jsonl" || { echo "skip $name (still alive)"; return 0; }
   mkdir -p "$dest"
   cp -f "$from/trace.jsonl" "$dest/trace.jsonl"
   if [ -n "$claude" ]; then
@@ -50,6 +51,11 @@ for src in "$RUNS"/batch_mock/*/; do
 done
 
 for src in "$RUNS"/claude_sonnet_s*/; do
+  [ -d "$src" ] || continue
+  copy_run "${src%/}" "$(basename "$src")" claude
+done
+CLAUDE_MODEL="claude-opus-5"
+for src in "$RUNS"/claude_opus_s*/; do
   [ -d "$src" ] || continue
   copy_run "${src%/}" "$(basename "$src")" claude
 done

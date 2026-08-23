@@ -91,7 +91,7 @@ export function mountMoments(root: HTMLElement, deps: MomentsDeps): { update(s: 
       const rows: [string, string][] = [
         ['years lived', String(Math.round(s.lastT / 4))],
         ['ducats at death', String(money)],
-        ['goals met', `${num(scores, 'goals_met', 0)} / ${num(scores, 'goals_total', s.hello?.persona.goals.length ?? 3)}`],
+        ['goals met', `${Array.isArray((scores as Record<string, unknown>).goals_met) ? ((scores as Record<string, unknown>).goals_met as unknown[]).length : num(scores, 'goals_met', 0)} / ${num(scores, 'goals_total', s.hello?.persona.goals.length ?? 3)}`],
         ['memory', `${num(scores, 'memory_passed', payoffs.filter((x) => x.ok).length)} / ${num(scores, 'memory_total', payoffs.length)}`],
         ['false claims rejected', `${num(scores, 'negatives_rejected', negatives.filter((x) => x.ok).length)} / ${num(scores, 'negatives_total', negatives.length)}`],
         ['cost', `$${e.cost_usd.toFixed(2)}`],

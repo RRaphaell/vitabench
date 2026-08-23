@@ -4,6 +4,7 @@ import json
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 import typer
 
@@ -37,12 +38,34 @@ def _seed_list(seeds: str) -> list[int]:
     return out
 
 
+
+def load_agent_module(path: Path) -> Any:
+    """Loads a user module defining `build_agent()` or an `Agent` class (adapter protocol)."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(path.stem, path)
+    if spec is None or spec.loader is None:
+        raise typer.BadParameter(f"cannot import {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    if hasattr(module, "build_agent"):
+        return module.build_agent()
+    if hasattr(module, "Agent"):
+        return module.Agent()
+    raise typer.BadParameter(f"{path} defines neither build_agent() nor Agent")
+
+
+
+def _num(value: float | None) -> str:
+    return f"{value:.3f}" if value is not None else "—"
+
+
 @app.command()
 def run(
     scenario: str = typer.Option(DEFAULT_SCENARIO, help="Scenario folder."),
     persona: str | None = typer.Option(None, help="Persona id; defaults to the first in the scenario."),
     seed: int = typer.Option(1),
-    agent: str = typer.Option("mock", help="mock | api"),
+    agent: str = typer.Option("mock", help="mock | api | path/to/agent.py (defines Agent or build_agent())"),
     policy: str = typer.Option("sensible", help="Mock policy: sensible | random | goldfish"),
     harness: str = typer.Option("none", help="API harness: none | notes"),
     model: str = typer.Option(DEFAULT_MODEL),
@@ -58,8 +81,11 @@ def run(
 
         worker = ApiLoopAgent(model=model, harness=get_harness(harness))
         harness_label, model_label, timeout = harness, model, TURN_TIMEOUT
+    elif agent.endswith(".py"):
+        worker = load_agent_module(Path(agent))
+        harness_label, model_label, timeout = Path(agent).stem, model, TURN_TIMEOUT
     else:
-        raise typer.BadParameter(f"unknown agent {agent!r}, expected mock or api")
+        raise typer.BadParameter(f"unknown agent {agent!r}, expected mock, api, or a path to a .py file")
     stamp = datetime.now().strftime("%H%M%S")
     tag = harness_label.replace(":", "_")
     run_dir = Path(out) if out else Path("runs") / f"{spec.id}_{persona_id}_{tag}_s{seed}_{stamp}"
@@ -110,7 +136,7 @@ def _print_leaderboard(rows: list[dict]) -> None:
         score = f"{row['H']:.3f} [{lo:.3f}, {hi:.3f}]"
         typer.echo(
             f"{row['harness']:<16}{row['model']:<18}{row['n']:>2}  {score:<24}"
-            f"{row['M']:>7.3f}{row['N']:>7.3f}{row['L']:>7.3f}{row['cost_usd']:>9.4f}"
+            f"{row['M']:>7.3f}{_num(row['N']):>7}{row['L']:>7.3f}{row['cost_usd']:>9.4f}"
         )
 
 

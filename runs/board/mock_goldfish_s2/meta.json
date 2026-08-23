@@ -1,0 +1,10 @@
+{
+  "run_id": "r_cae35b",
+  "started": "2026-08-23T00:44:10.381599+00:00",
+  "scenario": "venice_1340",
+  "persona": "marco",
+  "seed": 2,
+  "harness": "mock:goldfish",
+  "model": "mock",
+  "probes": 11
+}

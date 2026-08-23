@@ -105,7 +105,10 @@ def record_for(kind: str, probe: Probe, **over: Any) -> dict[str, Any]:
         "type": probe.type,
         "t": probe.plant_t if kind == "plant" else probe.payoff_t,
         "who": probe.slots["plant_who"] if kind == "plant" else probe.slots["payoff_who"],
-        "role": probe.slots.get("npc_role", ""),
+        "role": (
+            probe.slots.get("npc_role", "") if kind == "plant"
+            else ("stranger" if probe.slots.get("negative") else f"kin of {probe.slots.get('npc', '')}")
+        ),
         "claim": probe.plant_text if kind == "plant" else probe.payoff_text,
         "action": probe.action_taken or "",
         "ok": probe.passed,

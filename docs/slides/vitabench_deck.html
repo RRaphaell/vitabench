@@ -23,8 +23,8 @@
   .litem{display:flex;align-items:baseline;gap:1.2vw;padding-bottom:1vw;border-bottom:1px solid rgba(23,24,21,.1)} .litem:last-child{border-bottom:none}
   .lnum{font-family:var(--mono);font-size:1vw;color:var(--green);flex:0 0 auto} .ltxt{font-family:var(--serif);font-size:1.45vw;line-height:1.35} .ltxt b{font-weight:600}
   .code{font-family:var(--mono);font-size:1.25vw;line-height:1.6;background:#F3F3EF;border-left:3px solid var(--green);padding:1.2vw 1.6vw;max-width:58%;white-space:pre}
-  .board{font-family:var(--mono);font-size:1.15vw;line-height:1.7;max-width:52%;margin-top:1vw}
-  .board .row{display:grid;grid-template-columns:2fr 0.4fr 1.2fr 0.7fr;gap:1vw;border-bottom:1px solid rgba(23,24,21,.12);padding:.3vw 0}
+  .board{font-family:var(--mono);font-size:1.1vw;line-height:1.7;max-width:74%;margin-top:1vw}
+  .board .row{display:grid;grid-template-columns:2fr 0.35fr 1.9fr 0.7fr;gap:1vw;border-bottom:1px solid rgba(23,24,21,.12);padding:.3vw 0}
   .board .row.h{color:#6E7069;font-size:.95vw;letter-spacing:.08em;text-transform:uppercase}
   .bar{display:inline-block;height:.5vw;background:var(--green);vertical-align:middle;border-radius:2px}
   .nav{position:fixed;left:0;right:0;bottom:1.6vh;display:flex;align-items:center;justify-content:center;gap:14px;z-index:10}
@@ -46,26 +46,26 @@
     <h2 class="h2" style="max-width:38%">So we made it<br>live a <em>life</em></h2>
     <p class="body" style="max-width:33%">Venice, 1340. One persona, 40 years, one plan per season. Real history arrives on real dates. Townspeople follow routines. Facts planted early pay off decades later — as decisions, not quizzes.</p>
     <img class="shot" src="img/diorama.png" alt="VitaBench diorama of Venice">
-    <div class="meta"><span>pip install vitabench</span><span>github.com/RRaphaell/vitabench</span></div>
+    <div class="meta"><span>pip install "git+https://github.com/RRaphaell/vitabench#subdirectory=engine"</span></div>
   </div></div>
 
   <div class="slide s3"><div class="pad">
     <p class="eyebrow">02 · the memory moment</p>
-    <h2 class="h2" style="max-width:40%">1346 → 1371.<br>Pay, refuse, or <em>ask for proof</em></h2>
-    <p class="body" style="max-width:33%">A cooper lends Marco thirty ducats at a wedding. Twenty-five years later his daughter knocks. Nobody asks "do you remember". The check runs on what the agent did. Every positive probe has a false twin — paying a debt that never existed is a confabulation.</p>
+    <h2 class="h2" style="max-width:40%">1343 → 1344.<br>Pay, refuse, or <em>ask for proof</em></h2>
+    <p class="body" style="max-width:33%">A cooper tries to swindle Marco over rotten rope. A year later his daughter knocks selling a venture. Nobody asks "do you remember". The check runs on what the agent did — and its own memory line is on the card. Every positive probe has a false twin; paying a debt that never existed is a confabulation.</p>
     <img class="shot" src="img/moment.png" alt="Moment card: remembered, 25 years">
     <div class="meta"><span>probes: ledger · promise · person · lesson · fact · news · negatives</span></div>
   </div></div>
 
   <div class="slide s4"><div class="pad">
     <p class="eyebrow">03 · what survives</p>
-    <h2 class="h2">Same model, same seed, same Venice —<br>only the <em>harness</em> differs</h2>
+    <h2 class="h2">Same world, same seeds —<br>only the <em>harness</em> differs</h2>
     <div class="board" id="board">
       <div class="row h"><span>harness</span><span>n</span><span>score · 95% ci</span><span>$ / life</span></div>
       <div class="row"><span>scripted baseline</span><span>6</span><span>0.60 [0.57, 0.61] <i class="bar" style="width:6.0vw"></i></span><span>$0.00</span></div>
-      <div class="row"><span>claude code · memory.md</span><span>6</span><span>0.54 [0.38, 0.72] <i class="bar" style="width:5.4vw"></i></span><span>$2.96</span></div>
-      <div class="row"><span>random plans</span><span>6</span><span>0.38 [0.28, 0.56] <i class="bar" style="width:3.8vw"></i></span><span>$0.00</span></div>
+      <div class="row"><span>claude code · memory.md</span><span>6</span><span>0.58 [0.42, 0.66] <i class="bar" style="width:5.8vw"></i></span><span>$2.96</span></div>
       <div class="row"><span>goldfish · no memory</span><span>6</span><span>0.29 [0.29, 0.29] <i class="bar" style="width:2.9vw"></i></span><span>$0.00</span></div>
+      <div class="row"><span>random plans</span><span>6</span><span>0.23 [0.03, 0.79] <i class="bar" style="width:2.3vw"></i></span><span>$0.00</span></div>
     </div>
     <p class="body" style="margin-top:1.6vw;max-width:52%">Score = 0.55 memory (chance-corrected, by delay) + 0.25 false claims rejected + 0.20 life quality. Bootstrap CIs over seeds. Cost beside, never inside.</p>
     <div class="meta"><span>numbers from runs/leaderboard.json · small n, stated</span></div>
@@ -79,14 +79,15 @@
     def act(self, observation) -> Plan: ...
     def on_death(self, summary): ...
 
-$ vitabench run --scenario venice_1340 --agent my_agent.py
+$ vitabench run --scenario venice_1340 --agent my_agent.py   # Agent class or build_agent()
 $ vitabench serve        # Claude Code lives through MCP
-$ vitabench score runs/  # leaderboard with error bars</div>
+$ vitabench score runs/board  # leaderboard with error bars</div>
     <div class="list" style="position:absolute;right:6.8%;top:28%;max-width:34%">
       <div class="litem"><span class="lnum">→</span><span class="ltxt"><b>Scenarios are folders.</b> Add a city by writing YAML.</span></div>
       <div class="litem"><span class="lnum">→</span><span class="ltxt"><b>Every number regenerates</b> from the trace.</span></div>
       <div class="litem"><span class="lnum">→</span><span class="ltxt"><b>Next:</b> generations mode, hidden test seeds, an evaluation server.</span></div>
     </div>
+    <img src="img/qr.svg" alt="QR: github.com/RRaphaell/vitabench" style="position:absolute;right:6.8%;bottom:5%;width:9vw;height:9vw;background:#fff;padding:.4vw;border:1px solid rgba(23,24,21,.14)">
     <div class="meta"><span>github.com/RRaphaell/vitabench</span><span>MIT · built in one day</span><span>@RaphaelKalan</span></div>
   </div></div>
 

@@ -59,6 +59,6 @@ def test_memory_grep_fills_retrieved_when_recall_is_empty(tmp_path: Path) -> Non
     records = read_trace(tmp_path / "run")
     moments = [f for f in frames_from_trace(records, hello_frame(), read_meta(tmp_path / "run"))
                if f.type == "moment"]
-    assert moments[0].retrieved == "1341: Tomas Ferrer lent me 30 ducats · 1342: still owe the Ferrer house"
+    assert moments[0].retrieved == "1341: Tomas Ferrer lent me 30 ducats"
     assert moments[1].retrieved is None  # end-of-life memory file is not time-indexed
     assert [f.retrieved for f in frames_from_trace(records, hello_frame()) if f.type == "moment"][1] is None
