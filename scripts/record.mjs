@@ -1,7 +1,7 @@
 // Records a backup demo video of a run: node scripts/record.mjs <runName> [baseUrl]
 import { createRequire } from 'node:module';
 import { spawn } from 'node:child_process';
-import { mkdirSync, renameSync, readdirSync } from 'node:fs';
+import { mkdirSync, readdirSync, renameSync, rmSync } from 'node:fs';
 const require = createRequire(import.meta.url);
 const { chromium } = require('/Users/raphaelkalandadze/.hermes/hermes-agent/node_modules/playwright');
 const run = process.argv[2] ?? 'demo';
@@ -15,7 +15,7 @@ if (!base) {
   base = `http://localhost:${port}`;
   await new Promise(r => setTimeout(r, 2500));
 }
-const out = `runs/${run}/video`; mkdirSync(out, { recursive: true });
+const out = `runs/${run}/video`; rmSync(out, { recursive: true, force: true }); mkdirSync(out, { recursive: true });
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const ctx = await browser.newContext({ viewport: { width: 1600, height: 900 }, recordVideo: { dir: out, size: { width: 1600, height: 900 } } });
 const page = await ctx.newPage();

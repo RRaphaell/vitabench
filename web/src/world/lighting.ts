@@ -94,8 +94,8 @@ export function createLighting(scene: Scene, opts: LightingOpts): LightingHandle
       fogColor.lerp(WAR, 0.5);
       dayColor.lerp(WAR, 0.3);
     }
-    dayColor.lerp(NIGHT_A, 1 - day);
-    fogColor.lerp(NIGHT_B, 1 - day);
+    dayColor.lerp(NIGHT_A, (1 - day) * 0.7);
+    fogColor.lerp(NIGHT_B, (1 - day) * 0.7);
     (scene.background as Color).copy(dayColor);
     fog.color.copy(fogColor);
     fog.near = CAMERA_RADIUS + span * (env.plague ? -0.85 : 0.3);
@@ -103,8 +103,8 @@ export function createLighting(scene: Scene, opts: LightingOpts): LightingHandle
 
     const power = SEASON_SUN_POWER[season]!;
     sun.color.copy(sunColor).lerp(DUSK, 1 - day);
-    sun.intensity = (0.45 + day * 2.1 * (env.plague ? 0.6 : 1)) * power;
-    hemi.intensity = (0.4 + day * 0.75) * (season === 3 ? 1.35 : 1);
+    sun.intensity = (1.05 + day * 1.5 * (env.plague ? 0.6 : 1)) * power;
+    hemi.intensity = (0.75 + day * 0.4) * (season === 3 ? 1.35 : 1);
     hemi.color.copy(dayColor).lerp(WHITE, season === 3 ? 0.6 : 0.35);
 
     const mat = decal.material as MeshBasicMaterial;
