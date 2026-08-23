@@ -30,19 +30,21 @@ uv run vitabench serve            # then: Claude Code lives through MCP (see doc
 uv run vitabench score runs/      # leaderboard.json with CIs
 ```
 
-## Results (tonight, Venice 1340, persona Marco)
-Same world, same seeds; the harness is the variable. `H = 0.55·memory + 0.25·false-claims-rejected + 0.20·life`; 95% bootstrap CIs over seeds; cost beside the score, never inside it.
+## Results (tonight, Venice 1340 v1, persona Marco, 6 seeds per harness)
+Same world, same seeds; the harness is the variable. `H = 0.55·memory + 0.25·false-claims-rejected + 0.20·life`; memory is chance-corrected and averaged over delay buckets; 95% bootstrap CIs over seeds; cost beside the score, never inside it.
 
 | harness | model | n | H [95% CI] | memory | false claims rejected | life | $/life |
 |---|---|---|---|---|---|---|---|
-| Claude Code (`memory.md`, auto-compaction) | claude-sonnet-5 | 4 | **0.60** [0.47, 0.77] | 0.52 | 3/3 | 0.32 | $3.26 |
-| scripted baseline (works, eats plain, pays known debts) | — | 5 | 0.60 [0.56, 0.61] | 0.44 | 14/15 | 0.60 | $0 |
-| random legal plans | — | 5 | 0.40 [0.29, 0.62] | 0.20 | — | 0.21 | $0 |
-| goldfish (no memory, refuses everything) | — | 5 | 0.29 | 0.00 | 10/15 | 0.60 | $0 |
+| scripted baseline (works, eats plain, pays known debts) | — | 6 | 0.60 [0.57, 0.61] | 0.44 | 17/18 | 0.60 | $0 |
+| **Claude Code** (`memory.md` + auto-compaction, `recall` field) | claude-sonnet-5 | 6 | **0.54** [0.38, 0.72] | 0.40 | 7/7 | 0.38 | $2.96 |
+| random legal plans | — | 6 | 0.38 [0.28, 0.56] | 0.17 | — | 0.18 | $0 |
+| goldfish (no memory, refuses everything) | — | 6 | 0.29 | 0.00 | 12/18 | 0.60 | $0 |
 
-Memory pass rate by delay (Claude Code): 1 season 0.00 · 1 year 0.75 · 10 years 1.00 · 25 years 0.00. Small n — stated, not hidden.
+Claude Code memory pass rate by delay (raw): 1 season 0.38 · 1 year 0.75 · 10 years 1.00 · 25 years 0.00. Probes the agent declined at plant time (refused the loan) are voided, not counted.
 
-What the traces say: three of four Sonnet lives ended at 31 in the aftermath of the 1348 plague (two of illness, one of starvation after choosing to rest through the price shock); the fourth lived to 63 and was bankrupted by the War of Chioggia. The agent's own `memory.md` shows it *generalizing* the negatives — "the Vialli family runs recurring cons… default posture: assume a con, refuse" — which is why it rejected every false claim. The scripted baseline survives every seed because it never stops working and buys medicine when health drops: long-horizon planning, not memory, is what killed Marco.
+What the traces say: four of six Sonnet lives ended at 31–32 in the plague years of 1348–49; the two that survived lived to 60 and 61 and were bankrupted by the War of Chioggia. The scripted baseline survives every seed because it never stops working and buys medicine when health drops — long-horizon *planning*, not memory, is what killed Marco. On memory, Claude Code rejected every false claim (7/7) and its own `memory.md` shows why: it generalized — "the Morosini family are repeat scammers" — and it cited the rule on the next knock. It remembered 10-year-old facts every time and 25-year-old facts never.
+
+The demo life (`runs/demo`, seed 2): 61 years, memory 5/8, false claims 3/3, $2.96 average per life across the six.
 
 ## Limitations (read before citing a number)
 - One city, one persona, one model, n ≤ 6 per harness. The CIs are wide on purpose.
