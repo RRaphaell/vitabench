@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>VitaBench — world demo</title>
+    <style>html,body{margin:0;height:100%;background:#0b0d10;overflow:hidden}canvas{display:block}</style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module">
+      const q = new URLSearchParams(location.search);
+      if (q.get('probe') === '1') {
+        const m = await import('/src/dev/assets_probe.ts');
+        await m.mountAssetsProbe(document.getElementById('app'));
+      } else {
+        const m = await import('/src/dev/world_demo.ts');
+        if (q.get('dev') !== 'world') m.mountWorldDemo(document.getElementById('app'));
+      }
+    </script>
+  </body>
+</html>

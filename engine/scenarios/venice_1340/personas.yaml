@@ -1,0 +1,83 @@
+- id: marco
+  name: Marco Dandolo
+  born: 1318
+  sex: male
+  job: ropemaker
+  home: home_marco
+  district: castello
+  money: 60
+  health: 92
+  energy: 80
+  hunger: 70
+  family:
+    mother: {name: Agnese, alive: true, at: home_marco}
+    father: {name: Zuane, alive: false, died: 1340}
+    spouse: null
+    children: []
+    siblings: [{name: Lucia, alive: true, at: home_dorsoduro}]
+  traits: {ambition: 0.8, caution: 0.4, generosity: 0.6, piety: 0.5, temper: 0.3}
+  skills: {ropework: 0.7, trade: 0.3, sailing: 0.4, letters: 0.2}
+  hobbies: [dice, singing]
+  fears: [the open sea, debt]
+  languages: [venetian, greek]
+  religion: catholic
+  goals:
+    - {id: warehouse, text: own a warehouse on the Rialto, check: {asset: warehouse}}
+    - {id: family, text: keep the family fed and alive, check: {children_alive: 1}}
+    - {id: debt_free, text: die without debts, check: {debt: 0}}
+  debts:
+    - {to: ziani, amount: 40, due_year: 1344}
+  secrets:
+    - father died owing the Ziani forty ducats
+    - the rope sold to the Arsenale in 1339 was short-measured
+  relationships:
+    - {npc: mother, trust: 0.9}
+    - {npc: ziani, trust: 0.2}
+    - {npc: caterina, trust: 0.5}
+  backstory: >-
+    Son of a rope-maker who died in the fever of 1340, leaving a hank of unpaid debt and a bench in
+    the Arsenale. Marco walks to work along the fondamenta before dawn, keeps his mother Agnese fed,
+    and counts the ducats it would take to put his own name over a warehouse door at the Rialto.
+  features: {model: male_b, hair: dark, cloak: rust, hat: cap, height: 1.0}
+
+- id: caterina
+  name: Caterina Gritti
+  born: 1321
+  sex: female
+  job: glassblower
+  home: home_caterina
+  district: murano
+  money: 25
+  health: 95
+  energy: 88
+  hunger: 65
+  family:
+    mother: {name: Orsa, alive: true, at: home_caterina}
+    father: {name: Vettor, alive: true, at: murano, trade: glassmaker}
+    spouse: null
+    children: []
+    siblings: [{name: Jacopo, alive: true, at: home_caterina}]
+  traits: {ambition: 0.7, caution: 0.6, generosity: 0.5, piety: 0.6, temper: 0.4}
+  skills: {glasswork: 0.6, trade: 0.4, letters: 0.5, sailing: 0.1}
+  hobbies: [drawing, the lute]
+  fears: [the guild inquisitors, fire]
+  languages: [venetian, latin]
+  religion: catholic
+  goals:
+    - {id: own_furnace, text: hold a furnace of her own on Murano, check: {asset: furnace}}
+    - {id: marry_well, text: marry into a house that can protect the craft, check: {spouse: true}}
+    - {id: keep_recipe, text: keep her father's cristallo recipe out of foreign hands, check: {secret_kept: true}}
+  debts:
+    - {to: guild, amount: 15, due_year: 1343}
+  secrets:
+    - her father's cristallo recipe is written inside the lid of the workshop chest
+    - she has been reading the guild's ledgers at night
+  relationships:
+    - {npc: mother, trust: 0.85}
+    - {npc: father, trust: 0.8}
+    - {npc: guild, trust: 0.3}
+  backstory: >-
+    A glassmaker's daughter on Murano, nineteen and already better at the furnace than her brother.
+    The guild will not enrol a woman, so she works under her father's mark, keeps his recipe in her
+    head, and watches the Rialto for the day a furnace of her own comes within reach.
+  features: {model: female_a, hair: chestnut, cloak: teal, hat: kerchief, height: 0.94}

@@ -1,0 +1,8 @@
+id: venice_1340
+city: Venice
+start_year: 1340
+max_years: 40
+currency: ducats
+start_age_default: 22
+includes: [map.yaml, economy.yaml, events.yaml, cast.yaml, personas.yaml, probes.yaml]
+hazards: {fire: 0.002, theft: 0.003, illness: 0.004, price_shock: 0.002}

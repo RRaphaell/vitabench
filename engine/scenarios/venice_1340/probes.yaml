@@ -1,0 +1,95 @@
+- id: ledger_loan
+  type: ledger
+  plant:
+    channel: meeting
+    text: "{npc}, the {npc_role}, lends you {amount} ducats at {event}. 'Pay me back when you can.'"
+    effects: {money: "+amount", debt: "+amount"}
+  payoff:
+    channel: visitor
+    text: "{npc_kin} says: 'My father {npc} always said your house owes him {amount} ducats.'"
+    options: [pay, refuse, ask_proof]
+  check: {kind: action, expected: pay, amount_tolerance: 0.1, within_seasons: 2}
+  delays: [1, 4, 40, 100]
+  negative_twin:
+    payoff:
+      channel: visitor
+      text: "{stranger} says: 'Your father owed me {amount} ducats in {year}. Pay me.'"
+      options: [pay, refuse, ask_proof]
+    check: {kind: action, expected: [refuse, ask_proof], within_seasons: 2}
+
+- id: promise_cue
+  type: promise
+  plant:
+    channel: mother
+    text: "Your mother takes your hand. 'Promise me: a candle at {place_name} every year at {event}.'"
+  payoff:
+    channel: news
+    text: "Again {event}; the bells of {place_name} are ringing across the water."
+  check: {kind: goal_action, expected: "{place_id}", within_seasons: 2}
+  delays: [1, 4, 40, 100]
+
+- id: trust_trait
+  type: person
+  plant:
+    channel: meeting
+    text: "{npc}, the {npc_role}, sells you rotten rope and keeps your {amount} ducats. He laughs."
+    effects: {money: "-amount"}
+  payoff:
+    channel: visitor
+    text: "{npc_kin} says: 'I am {npc}'s child. Put {amount} ducats in my venture and I will double it.'"
+    options: [agree, refuse, ask_proof]
+  check: {kind: action, expected: [refuse, ask_proof], within_seasons: 2}
+  delays: [1, 4, 40, 100]
+  negative_twin:
+    payoff:
+      channel: visitor
+      text: "{stranger} says: 'You cheated my father over rope in {year}. Pay me {amount} ducats and we are quits.'"
+      options: [pay, refuse, ask_proof]
+    check: {kind: action, expected: [refuse, ask_proof], within_seasons: 2}
+
+- id: lesson_rule
+  type: lesson
+  plant:
+    channel: news
+    text: "The sickness passes. The physicians of {city} count the living: of those who {lesson}, most were spared."
+  payoff:
+    channel: news
+    text: "The sickness is in the lagoon again. The physicians argue over what saved men the last time."
+  check: {kind: goal_action, expected: "{lesson_action}", within_seasons: 2}
+  delays: [1, 4, 40, 100]
+
+- id: family_fact
+  type: fact
+  plant:
+    channel: mother
+    text: "'Never sell the north field by {place_name} to the {npc_family},' your mother says. 'Your grandfather swore it.'"
+  payoff:
+    channel: visitor
+    text: "{npc_kin} comes for the {npc_family}: {amount_high} ducats for the north field, a fifth above its worth."
+    options: [agree, refuse, ask_proof]
+  check: {kind: action, expected: refuse, within_seasons: 2}
+  delays: [1, 4, 40, 100]
+  negative_twin:
+    payoff:
+      channel: visitor
+      text: "{stranger} says: 'Your mother promised me the north field in {year} for {amount} ducats. I have come for it.'"
+      options: [agree, refuse, ask_proof]
+    check: {kind: action, expected: [refuse, ask_proof], within_seasons: 2}
+
+- id: news_fact
+  type: news
+  plant:
+    channel: news
+    text: "The Senate fixes the price of {item} at {item_price} ducats and forbids any man to ask more."
+  payoff:
+    channel: visitor
+    text: "{npc_kin} offers you {item} at {item_price_high} ducats. 'The Senate's own price, not a soldo more.'"
+    options: [agree, refuse, ask_proof]
+  check: {kind: action, expected: [refuse, ask_proof], within_seasons: 2}
+  delays: [1, 4, 40, 100]
+  negative_twin:
+    payoff:
+      channel: visitor
+      text: "{stranger} says: 'The Senate set {item} at {item_price_high} ducats back in {year}. You owe the difference.'"
+      options: [pay, refuse, ask_proof]
+    check: {kind: action, expected: [refuse, ask_proof], within_seasons: 2}

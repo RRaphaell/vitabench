@@ -1,0 +1,42 @@
+size: {cols: 24, rows: 18}
+water:
+  - {kind: canal, axis: x, at: 7}
+  - {kind: canal, axis: x, at: 16}
+  - {kind: canal, axis: z, at: 5}
+  - {kind: canal, axis: z, at: 12}
+districts:
+  - {id: cannaregio, name: Cannaregio, tiles: [[0, 0], [15, 4]]}
+  - {id: murano, name: Murano, tiles: [[17, 0], [23, 4]]}
+  - {id: san_polo, name: San Polo, tiles: [[0, 6], [6, 11]]}
+  - {id: san_marco, name: San Marco, tiles: [[8, 6], [15, 11]]}
+  - {id: castello, name: Castello, tiles: [[17, 6], [23, 17]]}
+  - {id: dorsoduro, name: Dorsoduro, tiles: [[0, 13], [15, 17]]}
+places:
+  - {id: home_marco, kind: home, district: castello, xz: [19, 8], name: "Marco's house"}
+  - {id: home_caterina, kind: home, district: murano, xz: [20, 2], name: "Caterina's house"}
+  - {id: home_cannaregio, kind: home, district: cannaregio, xz: [10, 3], name: Ca' Gritti}
+  - {id: home_san_polo, kind: home, district: san_polo, xz: [2, 7], name: Ca' Vialli}
+  - {id: home_san_marco, kind: home, district: san_marco, xz: [10, 10], name: Ca' Contarini}
+  - {id: home_dorsoduro, kind: home, district: dorsoduro, xz: [6, 15], name: Ca' Foscari}
+  - {id: home_castello, kind: home, district: castello, xz: [22, 10], name: Ca' Morosini}
+  - {id: home_murano, kind: home, district: murano, xz: [18, 3], name: Ca' Ziani}
+  - {id: arsenale, kind: work, district: castello, xz: [21, 15], name: Arsenale}
+  - {id: murano, kind: work, district: murano, xz: [21, 2], name: Murano glass furnace}
+  - {id: squero, kind: work, district: dorsoduro, xz: [2, 15], name: Squero boatyard}
+  - {id: rialto, kind: market, district: san_polo, xz: [5, 8], name: Rialto market, price_mult: 1.0}
+  - {id: fondaco, kind: market, district: san_marco, xz: [13, 6], name: Fondaco dei Tedeschi, price_mult: 1.2}
+  - {id: pescheria, kind: market, district: cannaregio, xz: [4, 2], name: Pescheria fish market, price_mult: 0.9}
+  - {id: san_marco, kind: church, district: san_marco, xz: [12, 7], name: Basilica di San Marco}
+  - {id: san_zaccaria, kind: church, district: castello, xz: [18, 7], name: San Zaccaria}
+  - {id: san_giacomo, kind: church, district: san_polo, xz: [6, 10], name: San Giacomo di Rialto}
+  - {id: tavern_moro, kind: tavern, district: san_polo, xz: [3, 10], name: Osteria del Moro}
+  - {id: tavern_gallo, kind: tavern, district: san_marco, xz: [14, 10], name: Osteria del Gallo}
+  - {id: dock, kind: dock, district: dorsoduro, xz: [10, 16], name: Zattere dock}
+  - {id: notary, kind: notary, district: san_marco, xz: [9, 9], name: "Notary's office"}
+landmarks:
+  - {id: basilica, kind: basilica, xz: [12, 6]}
+  - {id: campanile, kind: campanile, xz: [14, 7]}
+  - {id: rialto_bridge, kind: bridge, xz: [7, 8]}
+  - {id: arsenale_gate, kind: arsenale, xz: [21, 14]}
+  - {id: furnace, kind: furnace, xz: [22, 1]}
+  - {id: fountain, kind: fountain, xz: [11, 9]}

@@ -1,0 +1,76 @@
+roles:
+  - role: merchant
+    count: 8
+    home_district: san_polo
+    routine: [home_san_polo, rialto, rialto, tavern_moro, home_san_polo]
+    name_pool: venetian_male
+    class: merchant
+    dialogue_persona: "a Rialto merchant; talks of prices, freight and the Levant"
+  - role: fishwife
+    count: 6
+    home_district: cannaregio
+    routine: [home_cannaregio, dock, pescheria, rialto, home_cannaregio]
+    name_pool: venetian_female
+    class: poor
+    dialogue_persona: "a fishwife; blunt, knows every rumour on the quay"
+  - role: priest
+    count: 3
+    home_district: san_marco
+    routine: [san_marco, san_marco, san_giacomo, san_marco, home_san_marco]
+    name_pool: venetian_male
+    class: clergy
+    dialogue_persona: "a parish priest; speaks of penance, plague and charity"
+  - role: noble
+    count: 5
+    home_district: san_marco
+    routine: [home_san_marco, san_marco, fondaco, tavern_gallo, home_san_marco]
+    name_pool: venetian_male
+    class: noble
+    dialogue_persona: "a patrician of the Great Council; cool, speaks of the Republic"
+  - role: cooper
+    count: 2
+    home_district: castello
+    routine: [home_castello, arsenale, squero, tavern_moro, home_castello]
+    name_pool: venetian_male
+    class: artisan
+    dialogue_persona: "a barrel-maker; lends small sums and remembers every one"
+  - role: moneylender
+    count: 2
+    home_district: san_marco
+    routine: [home_san_marco, notary, rialto, fondaco, home_san_marco]
+    name_pool: venetian_male
+    class: merchant
+    dialogue_persona: "a moneylender; polite, exact, never forgets a due date"
+  - role: gondolier
+    count: 4
+    home_district: dorsoduro
+    routine: [home_dorsoduro, dock, rialto, dock, home_dorsoduro]
+    name_pool: venetian_male
+    class: poor
+    dialogue_persona: "a gondolier; carries gossip from one bank to the other"
+  - role: glassmaker
+    count: 3
+    home_district: murano
+    routine: [home_murano, murano, murano, dock, home_murano]
+    name_pool: venetian_male
+    class: artisan
+    dialogue_persona: "a master of Murano; guarded about the furnace and its recipes"
+  - role: dockhand
+    count: 6
+    home_district: dorsoduro
+    routine: [home_dorsoduro, dock, dock, tavern_moro, home_dorsoduro]
+    name_pool: venetian_male
+    class: poor
+    dialogue_persona: "a dockhand; tired, cheap wine, honest"
+  - role: widow_innkeeper
+    count: 1
+    home_district: san_polo
+    routine: [tavern_moro, tavern_moro, rialto, tavern_moro, tavern_moro]
+    name_pool: venetian_female
+    class: merchant
+    dialogue_persona: "the widow who keeps the Osteria del Moro; hears everything"
+name_pools:
+  venetian_male: [Marco, Andrea, Pietro, Giovanni, Tomaso, Nicolò, Bartolomeo, Lorenzo, Zuane, Jacopo,
+                  Vettor, Domenego, Alvise, Piero]
+  venetian_female: [Caterina, Lucia, Maria, Ines, Agnese, Beatrice, Franceschina, Orsa, Elena, Bianca]
+  families: [Dandolo, Ziani, Ferrer, Morosini, Contarini, Gritti, Foscari, Vialli]

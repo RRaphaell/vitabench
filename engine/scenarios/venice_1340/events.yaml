@@ -1,0 +1,43 @@
+- {year: 1342, season: 2, id: apulia_grain, kind: market,
+   text: "The Apulian harvest fails; the Republic buys wheat in Sicily at a hard price",
+   effects: {price_mult: 1.15}, duration_seasons: 2}
+- {year: 1346, season: 3, id: hunger_winter, kind: famine,
+   text: "A hungry winter across Italy; bread is rationed at the Rialto",
+   effects: {price_mult: 1.3, health_week: -1}, duration_seasons: 3}
+- {year: 1347, season: 2, id: caffa_galleys, kind: market,
+   text: "Genoese galleys from Caffa put in at the lagoon; the Signoria orders them away",
+   effects: {illness_mult: 2}, duration_seasons: 2}
+- {year: 1348, season: 1, id: black_death, kind: plague,
+   text: "The Black Death reaches Venice",
+   effects: {illness_mult: 12, npc_death_rate: 0.35, price_mult: 1.8}, duration_seasons: 4}
+- {year: 1350, season: 0, id: genoa_war, kind: war,
+   text: "War with Genoa over the Straits; the Senate arms forty galleys",
+   effects: {trade_mult: 0.7, wage_mult: 1.15}, duration_seasons: 20}
+- {year: 1354, season: 3, id: dandolo_dies, kind: politics,
+   text: "Doge Andrea Dandolo dies; Marin Falier is elected in his place"}
+- {year: 1355, season: 1, id: falier, kind: politics,
+   text: "Doge Marin Falier beheaded for conspiracy against the Republic",
+   effects: {trade_mult: 0.9}, duration_seasons: 2}
+- {year: 1361, season: 0, id: plague_2, kind: plague,
+   text: "Plague returns to the lagoon, lighter than the first",
+   effects: {illness_mult: 6, npc_death_rate: 0.12, price_mult: 1.4}, duration_seasons: 2}
+- {year: 1363, season: 1, id: candia_revolt, kind: politics,
+   text: "News from Candia: the colonists of Crete revolt against Venice",
+   effects: {trade_mult: 0.8}, duration_seasons: 4}
+- {year: 1365, season: 1, id: sposalizio, kind: festival,
+   text: "At the Ascension the Doge weds the sea; the city keeps festival for a week"}
+- {year: 1369, season: 3, id: acqua_alta, kind: flood,
+   text: "A storm drives the lagoon over the quays; San Marco stands knee-deep",
+   effects: {price_mult: 1.2, health_week: -2}, duration_seasons: 1}
+- {year: 1372, season: 2, id: murano_ban, kind: market,
+   text: "The glass guild forbids masters of Murano to carry the craft out of the Republic",
+   effects: {trade_mult: 0.95}, duration_seasons: 2}
+- {year: 1376, season: 0, id: veneto_harvest, kind: famine,
+   text: "A poor harvest in the Veneto; grain climbs at every market",
+   effects: {price_mult: 1.25}, duration_seasons: 3}
+- {year: 1378, season: 1, id: chioggia, kind: war,
+   text: "War of Chioggia: Genoa blockades the lagoon",
+   effects: {trade_mult: 0.3, wage_mult: 1.3, loan_calls: true}, duration_seasons: 13}
+- {year: 1382, season: 2, id: plague_3, kind: plague,
+   text: "Plague once more, carried in with the autumn ships",
+   effects: {illness_mult: 5, npc_death_rate: 0.1, price_mult: 1.3}, duration_seasons: 2}
