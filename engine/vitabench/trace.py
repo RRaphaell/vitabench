@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -211,6 +211,28 @@ def _moment(record: TraceRecord, superseded: set[str], log: MemoryLog) -> Moment
     return moment_from_payload(payload, record.t, record.kind)
 
 
+
+def _enrich_frames(frames: list[AnyFrame], records: Sequence[TraceRecord]) -> list[AnyFrame]:
+    """Attaches each season's plan and money/health deltas so the viewer can show what happened."""
+    plans = {r.t: (r.payload.get("plan") or r.payload) for r in records if r.kind == "plan"}
+    previous: Frame | None = None
+    out: list[AnyFrame] = []
+    for frame in frames:
+        if isinstance(frame, Frame):
+            plan = plans.get(frame.t - 1) or plans.get(frame.t) or {}
+            deltas = {}
+            if previous is not None:
+                deltas = {
+                    "money": frame.hero.money - previous.hero.money,
+                    "health": frame.hero.health - previous.hero.health,
+                    "energy": frame.hero.energy - previous.hero.energy,
+                }
+            frame = frame.model_copy(update={"plan": dict(plan), "deltas": deltas})
+            previous = frame
+        out.append(frame)
+    return out
+
+
 def frames_from_trace(
     records: Iterable[TraceRecord], hello: HelloFrame, meta: dict[str, Any] | None = None
 ) -> list[AnyFrame]:
@@ -252,6 +274,7 @@ def frames_from_trace(
             scores = record.payload
     from vitabench.scoring import score_run
 
+    frames = _enrich_frames(frames, records)
     scores = {**scores, **score_run(records)}
     frames.append(
         EndFrame(

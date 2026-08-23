@@ -439,6 +439,8 @@ class Frame(Strict):
     news: str = ""
     memory: MemoryFrame = MemoryFrame()
     relations: list[RelationFrame] = []
+    plan: dict[str, Any] = {}
+    deltas: dict[str, int] = {}
 
 
 class MomentFrame(Strict):
