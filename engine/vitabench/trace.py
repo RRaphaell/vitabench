@@ -142,6 +142,31 @@ def _moment_label(kind: str, ok: bool | None, delay_seasons: int) -> str:
     return f"remembered · {when}" if ok else f"forgot · {when}"
 
 
+
+INTENT_WORDS = {"chat", "agree", "refuse", "pay", "ask_proof", "promise", "lend", "borrow", "none", "acted", "declined_at_plant"}
+
+
+def _card_role(p: dict[str, Any], slots: dict[str, Any]) -> str:
+    channel = p.get("channel") or slots.get("payoff_channel")
+    if channel == "news":
+        return "news"
+    if channel == "mother":
+        return "mother"
+    if p.get("type") == "negative" or slots.get("negative"):
+        return "stranger"
+    who = str(p.get("who") or "").split()
+    kind = str(p.get("moment_kind") or p.get("kind") or "")
+    if who and kind != "plant" and not str(p.get("role") or "").startswith("kin"):
+        return f"{who[-1]} family"
+    return str(p.get("role") or slots.get("role") or "")
+
+
+def _card_action(action: str) -> str:
+    if action in INTENT_WORDS or " " in action or not action:
+        return action.replace("_", " ")
+    return f"went to {action.replace('_', ' ')}"
+
+
 def moment_from_payload(payload: dict[str, Any], t: int, record_kind: str = "probe_result") -> MomentFrame:
     p = payload
     probe_id = str(p.get("probe_id") or p.get("id") or "")
@@ -157,10 +182,10 @@ def moment_from_payload(payload: dict[str, Any], t: int, record_kind: str = "pro
         probe_id=probe_id,
         kind=kind,  # type: ignore[arg-type]
         who=str(who or "someone"),
-        role=str(p.get("role") or slots.get("role") or ""),
+        role=_card_role(p, slots),
         claim=str(claim),
         retrieved=p.get("retrieved"),
-        action=str(p.get("action") or p.get("action_taken") or ""),
+        action=_card_action(str(p.get("action") or p.get("action_taken") or "")),
         ok=ok,
         label=str(p.get("label") or _moment_label(kind, ok, delay)),
         delay_seasons=delay,
@@ -173,7 +198,8 @@ def _moment(record: TraceRecord, superseded: set[str], log: MemoryLog) -> Moment
     if record.kind == "probe_payoff" and probe_id in superseded:
         return None
     if record.kind != "probe_plant":
-        claim_names = " ".join(w for w in str(payload.get("claim") or "").replace("'", " ").split() if w[:1].isupper())
+        claim_words = str(payload.get("claim") or "").replace("'", " ").split()
+        claim_names = " ".join(w for w in claim_words if w[:1].isupper())
         retrieved, source = log.resolve(
             record.t, f"{payload.get('who') or ''} {claim_names}", str(payload.get("npc") or "")
         )

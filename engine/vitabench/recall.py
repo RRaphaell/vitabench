@@ -8,7 +8,9 @@ RECALL_JOIN = " · "
 GREP_SOURCE = "memory-grep"
 GREP_MAX = 1
 KEY_MIN = 4
-STOPWORDS = frozenset({"the", "and", "for", "from", "san", "del", "della", "your", "said", "says", "marco", "criers", "again"})
+STOPWORDS = frozenset(
+    {"the", "and", "for", "from", "san", "del", "della", "your", "said", "says", "marco", "criers", "again"}
+)
 
 
 def clean_line(raw: str) -> str:
@@ -27,12 +29,12 @@ def grep_memory(lines: Sequence[str], who: str, npc_id: str, limit: int = GREP_M
     if not keys:
         return []
     surname = who.split()[-1].strip(".:;()").lower() if who.split() else ""
-    scored: dict[str, tuple[int, int]] = {}
+    scored: dict[str, tuple[int, int, int]] = {}
     for index, line in enumerate(lines):
         text = clean_line(str(line))
         matched = sum(2 if key == surname else 1 for key in keys if key in text.lower())
         if text and matched:
-            scored[text] = (matched, index)
+            scored[text] = (matched, -len(text) // 80, index)
     ranked = sorted(scored, key=lambda text: scored[text], reverse=True)
     return ranked[:limit]
 
