@@ -41,6 +41,21 @@ function bar(row: Row): HTMLElement {
   return wrap;
 }
 
+
+const HARNESS_LABEL: Record<string, string> = {
+  'claude-code': 'Claude Code · memory.md',
+  'claude-code/caterina': 'Claude Code · Caterina',
+  'mock:sensible': 'scripted baseline',
+  'mock:goldfish': 'goldfish · no memory',
+  'mock:random': 'random plans',
+};
+const MODEL_LABEL: Record<string, string> = { 'claude-sonnet-5': 'Sonnet', 'claude-opus-5': 'Opus', mock: '' };
+function labelFor(row: { harness?: string; model?: string }): string {
+  const harness = HARNESS_LABEL[row.harness ?? ''] ?? row.harness ?? '?';
+  const model = MODEL_LABEL[row.model ?? ''] ?? row.model ?? '';
+  return model ? `${harness} · ${model}` : harness;
+}
+
 export function mountLeaderboard(root: HTMLElement, store: Store): { toggle(): void } {
   const button = el('button', 'lb-btn', 'leaderboard');
   const drawer = el('div', 'panel lb-drawer hidden');
@@ -67,7 +82,7 @@ export function mountLeaderboard(root: HTMLElement, store: Store): { toggle(): v
     const mine = store.hello?.harness ?? GOLD;
     for (const row of rows.sort((a, b) => (b.H ?? 0) - (a.H ?? 0))) {
       const tr = el('tr', row.harness === mine || row.harness === GOLD ? 'mine' : '');
-      tr.append(el('td', 'who', `${row.harness ?? '?'} · ${row.model ?? '?'}`));
+      tr.append(el('td', 'who', labelFor(row)));
       tr.append(el('td', '', count(row)));
       tr.append(el('td', '', typeof row.H === 'number' ? row.H.toFixed(3) : '—'));
       const cell = el('td', 'ci-cell');

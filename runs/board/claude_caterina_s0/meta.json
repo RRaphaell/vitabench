@@ -1,0 +1,6 @@
+{
+  "harness": "claude-code/caterina",
+  "model": "claude-sonnet-5",
+  "seed": 0,
+  "persona": "caterina"
+}

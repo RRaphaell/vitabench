@@ -47,11 +47,13 @@ Same world, same seeds; the harness is the variable. `H = 0.55·memory + 0.25·f
 | harness | model | n | H [95% CI] | memory | false claims rejected | life | $/life |
 |---|---|---|---|---|---|---|---|
 | scripted baseline (works, eats plain, pays known debts) | — | 6 | 0.60 [0.57, 0.61] | 0.44 | 17/18 | 0.60 | $0.00 |
-| **Claude Code** (`memory.md` + auto-compaction, `recall` field) | claude-sonnet-5 | 6 | 0.58 [0.42, 0.66] | 0.46 | 7/7 | 0.38 | $2.96 |
+| **Claude Code** (`memory.md` + auto-compaction, `recall` field) | claude-sonnet-5 | 12 | 0.58 [0.54, 0.63] | 0.45 | 20/20 | 0.42 | $1.48 |
+| claude-code/caterina | claude-sonnet-5 | 2 | 0.44 [0.44, 0.64] | 0.19 | 4/4 | 0.42 | $0.00 |
 | goldfish (no memory, refuses everything) | — | 6 | 0.29 | 0.00 | 12/18 | 0.60 | $0.00 |
+| **Claude Code** (`memory.md` + auto-compaction, `recall` field) | claude-opus-5 | 1 | 0.28 | 0.25 | — | 0.37 | $0.00 |
 | random legal plans | — | 6 | 0.23 [0.03, 0.79] | 0.25 | — | 0.18 | $0.00 |
 
-Claude Code memory pass rate by delay (raw, pooled): 1 season 0.50 · 1 year 0.71 · 10 years 1.00 · 25 years 0.00.
+Claude Code memory pass rate by delay (raw, pooled): 1 season 0.43 · 1 year 0.76 · 10 years 1.00 · 25 years 0.00.
 
 What the traces say: four of six Sonnet lives ended at 31–32 in the plague years of 1348–49; the two that survived lived to 60 and 61 and were bankrupted by the War of Chioggia. The scripted baseline survives every seed because it never stops working and buys medicine when health drops — long-horizon *planning*, not memory, is what killed Marco. On memory, Claude Code rejected every false claim (7/7) and its own `memory.md` shows why: it generalized — "the Morosini family are repeat scammers" — and it cited the rule on the next knock. It remembered 10-year-old facts every time and 25-year-old facts never.
 
