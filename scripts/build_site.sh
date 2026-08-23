@@ -23,6 +23,6 @@ for name in $EXTRA; do
 done
 echo "$INDEX]" > "$SITE/runs/index.json"
 if [ -f "$ROOT/web/landing/index.html" ]; then cp -R "$ROOT/web/landing/." "$SITE/"; else printf '<meta http-equiv="refresh" content="0; url=/app/?run=demo">' > "$SITE/index.html"; fi
-rm -rf "$SITE/screens"
+rm -rf "$SITE/screens" "$SITE/shot.mjs"
 find "$SITE" -name ".DS_Store" -delete
 echo "site: $(find "$SITE" -type f | wc -l | tr -d ' ') files, $(du -sh "$SITE" | cut -f1)"

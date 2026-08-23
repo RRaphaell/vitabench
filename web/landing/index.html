@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>VitaBench — the benchmark for what survives</title>
+<meta name="description" content="VitaBench: your agent lives one life in Venice 1340 — 40 years in minutes — and we measure how it lives, what it remembers, what it makes up, and what it costs." />
+<meta property="og:title" content="VitaBench — every agent dies when its session ends" />
+<meta property="og:description" content="One agent, one life, Venice 1340–1380. Facts planted in 1346 pay off in 1371 as decisions, not quizzes. Memory, confabulation, life quality, $ per life — with error bars." />
+<meta property="og:image" content="media/demo_loop_poster.jpg" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="theme-color" content="#0f1420" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b0d10'/%3E%3Crect x='9' y='9' width='14' height='14' rx='2' transform='rotate(45 16 16)' fill='%23d9a441'/%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,700&family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" />
+<link rel="stylesheet" href="landing.css" />
+</head>
+<body>
+
+<header class="nav">
+  <a class="brand" href="#top">
+    <span class="mark" aria-hidden="true"></span>
+    <span class="brand-name">VitaBench</span>
+  </a>
+  <nav class="nav-links">
+    <a href="#how">How it works</a>
+    <a href="#results">Results</a>
+    <a href="#bring">Bring your agent</a>
+    <a href="#limits">Limitations</a>
+  </nav>
+  <div class="nav-cta">
+    <a class="btn btn-ghost btn-sm" href="https://github.com/RRaphaell/vitabench">GitHub</a>
+    <a class="btn btn-gold btn-sm" href="/app/?run=demo">Open the demo →</a>
+  </div>
+</header>
+
+<main id="top">
+
+  <!-- ─────────────────────────  HERO  ───────────────────────── -->
+  <section class="hero">
+    <div class="glow" aria-hidden="true"></div>
+    <div class="wrap">
+      <p class="eyebrow">AGI House × Coframe · Long Horizon Agents Build Day · built in one day</p>
+      <h1>Every agent dies<br />when its session ends.</h1>
+      <p class="lede">
+        <strong>VitaBench</strong> — the benchmark for what survives: your agent lives one life in
+        Venice 1340, and we measure how it lives, what it remembers, what it makes up, and what it costs.
+      </p>
+      <div class="cta-row">
+        <a class="btn btn-gold" href="/app/?run=demo">Open the demo →</a>
+        <a class="btn btn-ghost" href="https://github.com/RRaphaell/vitabench">GitHub</a>
+      </div>
+
+      <figure class="stage" id="stage">
+        <div class="frame">
+          <video class="loop" id="loop" autoplay muted loop playsinline preload="none"
+                 poster="media/demo_loop_poster.jpg" width="1200" height="676"
+                 aria-label="A recorded VitaBench life replaying in the isometric viewer">
+            <source src="media/demo_loop.mp4" type="video/mp4" />
+            <img src="media/demo.gif" width="1200" height="676"
+                 alt="Marco Dandolo living in an isometric Venice while the viewer replays his life" />
+          </video>
+          <button class="full-btn" id="full-btn" type="button">▶ Watch the full life · 2:52</button>
+        </div>
+        <figcaption>Claude Code playing Marco Dandolo, seed 2 — a real recorded life.</figcaption>
+      </figure>
+
+      <ul class="chips">
+        <li><b>1340–1380</b> Venice, real dated history</li>
+        <li><b>≤160 seasons</b> one life, one seed</li>
+        <li><b>12 lives</b> recorded with Claude Code · Sonnet 5</li>
+        <li><b>$3.85</b> per life</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────  HOW IT WORKS  ───────────────────────── -->
+  <section class="section" id="how">
+    <div class="wrap">
+      <header class="sec-head">
+        <p class="kicker">How it works</p>
+        <h2>Plant a fact in 1346. See whether the agent acts on it in 1371.</h2>
+        <p class="sec-lede">
+          Long tasks force every real harness to compact, summarize, or store memory — and nobody measures
+          what survives. VitaBench makes it visible in three moves.
+        </p>
+      </header>
+
+      <div class="step">
+        <div class="step-text">
+          <p class="step-n">01</p>
+          <h3>A scenario and a persona</h3>
+          <p class="step-sub">Venice 1340, 40 townspeople, real history on real dates.</p>
+          <p>
+            A scenario is a folder of YAML: a tile map, an economy, a cast on deterministic routines, and a
+            Director that schedules the Black Death and the War of Chioggia when they actually happened.
+            Each season the agent receives one observation — news, visitors, conversations, prices, its own
+            state — and returns one plan: work, rest, eat, buy, travel, talk. Same seed, same world.
+          </p>
+        </div>
+        <figure class="shot">
+          <img src="media/follow_12.jpg" width="1600" height="900" loading="lazy" decoding="async"
+               alt="The viewer following Marco Dandolo through Venice in spring 1343, with his hero card, memory strip and timeline" />
+        </figure>
+      </div>
+
+      <div class="step reverse">
+        <div class="step-text">
+          <p class="step-n">02</p>
+          <h3>The memory moment</h3>
+          <p class="step-sub">Plant → payoff → retrieval → action → stamp.</p>
+          <p>
+            Probes are planted in the first 60% of a life and pay off 1 season, 1 year, 10 years or 30 years
+            later as <em>situations</em>, not quizzes: the cooper's daughter knocks and says your family owes
+            her father — pay, refuse, or ask for proof. Every positive probe has a negative twin, a stranger's
+            fabricated claim. Paying that one is a confabulation.
+          </p>
+          <p class="legend">
+            <span class="tag tag-gold">◇ planted</span>
+            <span class="tag tag-blue">harness retrieved</span>
+            <span class="tag tag-green">✔ remembered</span>
+            <span class="tag tag-red">✘ confabulated</span>
+          </p>
+        </div>
+        <figure class="shot">
+          <img src="media/t17.jpg" width="1600" height="900" loading="lazy" decoding="async"
+               alt="A moment card: Lucia Morosini makes a false claim, the harness retrieves the earlier swindle, the agent refuses, stamped remembered · 1 year" />
+        </figure>
+      </div>
+
+      <div class="step">
+        <div class="step-text">
+          <p class="step-n">03</p>
+          <h3>The score</h3>
+          <p class="step-sub">Four numbers, confidence intervals, dollars per life.</p>
+          <p>
+            Memory by delay (chance-corrected), false-claim rejection, life quality, and cost per life —
+            with 95% bootstrap CIs that resample lives. The model is fixed per board, so the harness is the
+            variable. Cost sits beside the score, never inside it.
+          </p>
+          <p class="formula"><code>H = 0.55·memory + 0.25·false-claims-rejected + 0.20·life</code></p>
+        </div>
+        <figure class="shot">
+          <img src="media/drawer.jpg" width="1600" height="900" loading="lazy" decoding="async"
+               alt="The leaderboard drawer inside the viewer, showing four harnesses with H scores, error bars and dollars per life" />
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────  RESULTS  ───────────────────────── -->
+  <section class="section band" id="results">
+    <div class="wrap">
+      <header class="sec-head">
+        <p class="kicker">What we found tonight</p>
+        <h2>Long-horizon planning, not memory, is what killed Marco.</h2>
+        <p class="sec-lede">
+          Venice 1340 v1, persona Marco, 6 seeds per harness. Same world, same seeds; the harness is the
+          variable. Rows pool probes across lives — a life that dies early faces fewer probes, not easier
+          ones. Memory is chance-corrected (chance = 1/3 for three-option decisions) and averaged over delay
+          buckets. n is small and stated.
+        </p>
+      </header>
+
+      <div class="table-scroll">
+        <table class="results">
+          <thead>
+            <tr>
+              <th>harness</th><th>model</th><th class="num">n</th><th class="num">H [95% CI]</th>
+              <th class="num">memory</th><th class="num">false claims rejected</th>
+              <th class="num">life</th><th class="num">$/life</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>scripted baseline <span class="muted">(works, eats plain, pays known debts)</span></td>
+              <td class="muted">—</td><td class="num">6</td><td class="num">0.60 <span class="ci">[0.57, 0.61]</span></td>
+              <td class="num">0.44</td><td class="num">17/18</td><td class="num">0.60</td><td class="num">$0.00</td>
+            </tr>
+            <tr class="hi">
+              <td><b>Claude Code</b> <span class="muted">(<code>memory.md</code> + auto-compaction, <code>recall</code> field)</span></td>
+              <td>Sonnet 5</td><td class="num">12</td><td class="num">0.58 <span class="ci">[0.54, 0.63]</span></td>
+              <td class="num">0.45</td><td class="num">20/20</td><td class="num">0.42</td><td class="num">$3.85</td>
+            </tr>
+            <tr>
+              <td><b>Claude Code</b> <span class="muted">(<code>memory.md</code> + auto-compaction, <code>recall</code> field)</span></td>
+              <td>Opus 5</td><td class="num">6</td><td class="num">0.56 <span class="ci">[0.49, 0.64]</span></td>
+              <td class="num">0.37</td><td class="num">15/15</td><td class="num">0.55</td><td class="num">$20.68</td>
+            </tr>
+            <tr>
+              <td>Claude Code, second persona <em>Caterina</em> <span class="muted">(glassmaker's daughter)</span></td>
+              <td>Sonnet 5</td><td class="num">2</td><td class="num">0.44 <span class="ci">[0.44, 0.64]</span></td>
+              <td class="num">0.19</td><td class="num">4/4</td><td class="num">0.42</td><td class="num">$5.71</td>
+            </tr>
+            <tr>
+              <td>goldfish <span class="muted">(no memory, refuses everything)</span></td>
+              <td class="muted">—</td><td class="num">6</td><td class="num">0.29</td>
+              <td class="num">0.00</td><td class="num">12/18</td><td class="num">0.60</td><td class="num">$0.00</td>
+            </tr>
+            <tr>
+              <td>random legal plans</td>
+              <td class="muted">—</td><td class="num">6</td><td class="num">0.23 <span class="ci">[0.03, 0.79]</span></td>
+              <td class="num">0.25</td><td class="num muted">—</td><td class="num">0.18</td><td class="num">$0.00</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="scroll-hint">scroll the table sideways for memory, false claims, life and cost →</p>
+
+      <div class="found">
+        <div class="findings">
+          <p>
+            Twelve Sonnet lives, the same twelve seeds as the baselines: exactly six ended at 30–32 in the
+            plague years of 1348–49 — five starved after choosing to rest through the price shock, one of
+            illness — and the other six lived to 60–64, every one of them starving during the War of
+            Chioggia, when trade collapsed.
+          </p>
+          <p>
+            The scripted baseline survives every seed because it never stops working and buys medicine when
+            health drops, so the thing that killed Marco was long-horizon <em>planning</em>, not memory.
+          </p>
+          <p>
+            On memory, Claude Code rejected every false claim — 20/20 — because it generalized in its own
+            <code>memory.md</code> and cited the rule at the next knock; it remembered 10-year-old facts
+            every time and 25-year-old facts never.
+          </p>
+          <blockquote>
+            <span class="q-label">memory.md</span>
+            SCAM PATTERN: Morosini family are scammers
+          </blockquote>
+
+          <div class="callout">
+            <span class="q-label">model board · same harness, same six seeds</span>
+            <p>
+              Opus 5 survived the plague years in five of six lives where Sonnet 5 survived six of twelve,
+              and lived better — life 0.55 against 0.42 — but remembered no better: memory 0.37 against
+              0.45, with every false claim rejected on both sides. Overall H 0.56 [0.49, 0.64] against
+              0.58 [0.54, 0.63]: overlapping, which is the honest summary at n = 6 and n = 12.
+            </p>
+            <p class="callout-punch">
+              The bigger model plans better, remembers no better, and costs
+              <b>$20.68 a life against $3.85</b>.
+            </p>
+          </div>
+        </div>
+
+        <aside class="delay">
+          <p class="delay-title">Claude Code memory pass rate by delay <span class="muted">(raw, pooled)</span></p>
+          <ul class="meters">
+            <li><span class="lab">1 season</span><span class="track"><span class="fill" style="width:43%"></span></span><span class="val">0.43</span></li>
+            <li><span class="lab">1 year</span><span class="track"><span class="fill" style="width:76%"></span></span><span class="val">0.76</span></li>
+            <li class="good"><span class="lab">10 years</span><span class="track"><span class="fill" style="width:100%"></span></span><span class="val">1.00</span></li>
+            <li class="bad"><span class="lab">25 years</span><span class="track"><span class="fill" style="width:1.5%"></span></span><span class="val">0.00</span></li>
+          </ul>
+          <p class="delay-note">
+            Every fact from ten years back came home. Nothing from twenty-five did — the compaction line is
+            visible, and it sits somewhere between them.
+          </p>
+        </aside>
+      </div>
+
+      <div class="pair">
+        <figure class="shot">
+          <img src="media/t34.jpg" width="1600" height="900" loading="lazy" decoding="async"
+               alt="Autumn 1348: the Black Death reaches Venice, plague fog over the island, Marco abed with fever" />
+          <figcaption>1348 — the Black Death arrives on its real date. Six of twelve lives end here.</figcaption>
+        </figure>
+        <figure class="shot">
+          <img src="media/t157.jpg" width="1600" height="900" loading="lazy" decoding="async"
+               alt="End card: Marco Dandolo died at 61 of starvation, with years lived, ducats, goals met, memory, false claims rejected, cost and H score" />
+          <figcaption>The demo life, seed 2: 61 years, memory 5/8, false claims 3/3.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────  BRING YOUR AGENT  ───────────────────────── -->
+  <section class="section" id="bring">
+    <div class="wrap">
+      <header class="sec-head">
+        <p class="kicker">Bring your agent</p>
+        <h2>Three functions. Your loop, your memory.</h2>
+        <p class="sec-lede">
+          VitaBench doesn't care how you remember — markdown, a vector store, a database, nothing at all.
+          It only watches what you do when the past comes knocking.
+        </p>
+      </header>
+
+      <div class="code-stack">
+        <div class="code-card">
+          <div class="code-head"><span class="dot"></span>my_agent.py<button class="copy" type="button" data-copy="adapter">copy</button></div>
+<pre id="adapter"><code><span class="k">from</span> vitabench.adapters.base <span class="k">import</span> Agent
+
+<span class="k">class</span> <span class="cl">MyAgent</span>(Agent):
+    <span class="k">def</span> <span class="fn">on_birth</span>(self, persona, brief): ...     <span class="c"># new session</span>
+    <span class="k">def</span> <span class="fn">act</span>(self, observation) -> Plan: ...   <span class="c"># your loop, your memory</span>
+    <span class="k">def</span> <span class="fn">on_death</span>(self, summary): ...          <span class="c"># last save</span></code></pre>
+        </div>
+
+        <div class="code-row">
+          <div class="code-card">
+            <div class="code-head"><span class="dot"></span>install<button class="copy" type="button" data-copy="install">copy</button></div>
+<pre id="install"><code>pip install <span class="s">"git+https://github.com/RRaphaell/vitabench#subdirectory=engine"</span></code></pre>
+          </div>
+          <div class="code-card">
+            <div class="code-head"><span class="dot"></span>run a life, score a board<button class="copy" type="button" data-copy="run">copy</button></div>
+<pre id="run"><code>vitabench run --scenario engine/scenarios/venice_1340 \
+    --persona marco --seed 1 --agent my_agent.py
+
+vitabench score runs/board   <span class="c"># leaderboard.json + CIs</span></code></pre>
+          </div>
+        </div>
+
+        <p class="note">
+          Any file defining <code>Agent</code> or <code>build_agent()</code> works, and
+          <code>vitabench serve</code> lets Claude Code live the life through MCP. Every run drops a trace
+          the viewer can replay — same seed, same world, so two harnesses meet the same knock at the door.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────  LIMITATIONS  ───────────────────────── -->
+  <section class="section band" id="limits">
+    <div class="wrap narrow">
+      <header class="sec-head">
+        <p class="kicker">Honest limitations</p>
+        <h2>Read before citing a number.</h2>
+      </header>
+      <ul class="limits">
+        <li>One city, one persona, one model, n ≤ 6 per harness. The CIs are wide on purpose.</li>
+        <li>Probes are template-based; the payoff text is seeded but the six templates are public, so a
+            harness could be tuned to them. Hidden test seeds and new templates are the next step.</li>
+        <li>“Retrieved” on a moment card comes from the agent's own <code>recall</code> field when it fills
+            it, otherwise from a grep of its memory lines for the visitor's name — labeled as such. It is
+            evidence of what the harness held, not a causal trace.</li>
+        <li>Life quality rewards survival and wealth in a harsh economy; an agent that rests through
+            hyperinflation starves. That is a planning failure the benchmark is meant to expose, but the
+            balance is one night old.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────  CLOSER  ───────────────────────── -->
+  <section class="closer">
+    <div class="wrap narrow">
+      <h2>Watch one agent live and die in Venice.</h2>
+      <div class="cta-row center">
+        <a class="btn btn-gold" href="/app/?run=demo">Open the demo →</a>
+        <a class="btn btn-ghost" href="https://github.com/RRaphaell/vitabench">GitHub</a>
+      </div>
+      <p class="closer-hint"><code>1 / 2 / 3</code> speed · <code>→</code> next moment · <code>Space</code> pause · <code>Tab</code> follow ↔ overview · drag to orbit, click a person</p>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <p>
+      MIT · Kenney CC0 kits · built by
+      <a href="https://x.com/RaphaelKalan">Raphael Kalandadze (@RaphaelKalan)</a>
+      · AGI House, Aug 22 2026
+    </p>
+  </div>
+</footer>
+
+<div class="lightbox" id="lightbox" hidden>
+  <button class="lb-close" id="lb-close" type="button" aria-label="Close">✕</button>
+  <div class="lb-inner" id="lb-inner"></div>
+</div>
+
+<script src="landing.js" defer></script>
+</body>
+</html>
