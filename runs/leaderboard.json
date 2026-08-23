@@ -146,6 +146,76 @@
     }
   },
   {
+    "harness": "claude-code",
+    "model": "claude-opus-5",
+    "n": 6,
+    "seeds": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "H": 0.5638,
+    "M": 0.3694,
+    "M_by_delay": {
+      "4": 0.6269,
+      "1": 0.0,
+      "40": 0.8507,
+      "100": 0.0
+    },
+    "M_raw_by_delay": {
+      "4": 0.75,
+      "1": 0.2,
+      "40": 0.9,
+      "100": 0.2222
+    },
+    "M_counts_by_delay": {
+      "4": [
+        9,
+        12
+      ],
+      "1": [
+        2,
+        10
+      ],
+      "40": [
+        9,
+        10
+      ],
+      "100": [
+        2,
+        9
+      ]
+    },
+    "N": 1.0,
+    "L": 0.5533,
+    "negatives": {
+      "x": 15,
+      "y": 15
+    },
+    "H_life_mean": 0.585,
+    "chance": 0.33,
+    "chance_source": "default (2 mock:random probes, need 8)",
+    "cost_usd": 20.684467,
+    "cost": 20.684467,
+    "ci": {
+      "H": [
+        0.4929,
+        0.6378
+      ],
+      "M": [
+        0.2681,
+        0.4689
+      ],
+      "L": [
+        0.4537,
+        0.6617
+      ]
+    }
+  },
+  {
     "harness": "claude-code/caterina",
     "model": "claude-sonnet-5",
     "n": 2,
@@ -278,53 +348,6 @@
       "L": [
         0.6,
         0.6
-      ]
-    }
-  },
-  {
-    "harness": "claude-code",
-    "model": "claude-opus-5",
-    "n": 1,
-    "seeds": [
-      5
-    ],
-    "H": 0.2841,
-    "M": 0.2537,
-    "M_by_delay": {
-      "4": 0.2537
-    },
-    "M_raw_by_delay": {
-      "4": 0.5
-    },
-    "M_counts_by_delay": {
-      "4": [
-        1,
-        2
-      ]
-    },
-    "N": null,
-    "L": 0.3676,
-    "negatives": {
-      "x": 0,
-      "y": 0
-    },
-    "H_life_mean": 0.4631,
-    "chance": 0.33,
-    "chance_source": "default (2 mock:random probes, need 8)",
-    "cost_usd": 3.8196,
-    "cost": 3.8196,
-    "ci": {
-      "H": [
-        0.2841,
-        0.2841
-      ],
-      "M": [
-        0.2537,
-        0.2537
-      ],
-      "L": [
-        0.3676,
-        0.3676
       ]
     }
   },

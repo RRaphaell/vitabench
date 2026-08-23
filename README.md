@@ -50,14 +50,16 @@ Same world, same seeds; the harness is the variable. `H = 0.55·memory + 0.25·f
 |---|---|---|---|---|---|---|---|
 | scripted baseline (works, eats plain, pays known debts) | — | 6 | 0.60 [0.57, 0.61] | 0.44 | 17/18 | 0.60 | $0.00 |
 | **Claude Code** (`memory.md` + auto-compaction, `recall` field) | Sonnet 5 | 12 | 0.58 [0.54, 0.63] | 0.45 | 20/20 | 0.42 | $3.85 |
+| **Claude Code** (`memory.md` + auto-compaction, `recall` field) | Opus 5 | 6 | 0.56 [0.49, 0.64] | 0.37 | 15/15 | 0.55 | $20.68 |
 | Claude Code, second persona *Caterina* (glassmaker's daughter) | Sonnet 5 | 2 | 0.44 [0.44, 0.64] | 0.19 | 4/4 | 0.42 | $5.71 |
 | goldfish (no memory, refuses everything) | — | 6 | 0.29 | 0.00 | 12/18 | 0.60 | $0.00 |
-| **Claude Code** (`memory.md` + auto-compaction, `recall` field) | Opus 5 | 1 | 0.28 | 0.25 | — | 0.37 | $3.82 |
 | random legal plans | — | 6 | 0.23 [0.03, 0.79] | 0.25 | — | 0.18 | $0.00 |
 
 Claude Code memory pass rate by delay (raw, pooled): 1 season 0.43 · 1 year 0.76 · 10 years 1.00 · 25 years 0.00.
 
 What the traces say (12 Sonnet lives, same 12 seeds as the baselines): exactly six ended at 30–32 in the plague years of 1348–49 (five starved after choosing to rest through the price shock, one of illness); the other six lived to 60–64 — and every one of them starved during the War of Chioggia, when trade collapsed. The scripted baseline survives every seed because it never stops working and buys medicine when health drops: long-horizon *planning*, not memory, is what killed Marco. On memory, Claude Code rejected every false claim (20/20) and its own `memory.md` shows why — it generalized: "SCAM PATTERN: Morosini family are scammers" — and cited that rule on the next knock. It remembered 10-year-old facts every time and 25-year-old facts never.
+
+**Model board (same harness, Claude Code; same 6 seeds):** Opus 5 survived the plague years in 5 of 6 lives where Sonnet 5 survived 6 of 12, and lived better (life 0.55 vs 0.42) — but Sonnet remembered more (memory 0.45 vs 0.37); both rejected every false claim (Opus 15/15, Sonnet 20/20). Opus cost **$20.68 per life** against Sonnet's $3.85. Overall H 0.56 [0.49, 0.64] vs 0.58 [0.54, 0.63] — overlapping, which is the honest summary at n=6 and n=12: the bigger model plans better and remembers no better, at five times the price.
 
 The demo life (`runs/demo`, seed 2): 61 years, memory 5/8, false claims 3/3, $2.96 average per life across the six.
 

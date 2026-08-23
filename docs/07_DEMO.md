@@ -10,7 +10,7 @@
 - **1:35** `→` 1354: Alvise Contarini claims a 1344 rope debt. REFUSED · ✔. *"A stranger invents a debt. Nothing in memory matches. He refuses — memory that cannot surface what never happened."*
 - **1:50** `→` 1372 / 1376: two 25-year probes — FORGOT ✘. *"Twenty-five years is where this harness breaks. Ten years it remembers every time; twenty-five, never. That's the forgetting curve."*
 - **2:05** 1378 war galleys, blockade; money to zero; 1379 end card: died at 61, memory 5/8, false claims 3/3, $6.29. *"The war bankrupted him. This life cost $6.29; the six-life mean is about $3 because four of them died young. Honest benchmark: it shows the deaths."*
-- **2:20** Leaderboard pill: 4 harnesses × 6 seeds, H with CIs, $/life. *"Same world, same seeds — the harness is the variable. Goldfish at the bottom, the scripted baseline at the top because it never stops working, Claude Code in between at three dollars a life."*
+- **2:20** Leaderboard pill: 4 harnesses × 6 seeds, H with CIs, $/life. *"Same world, same seeds — the harness is the variable. Goldfish at the bottom, the scripted baseline at the top because it never stops working, Claude Code in between at four dollars a life. And a model board: Opus survives the plague far more often, remembers no better, and costs five times as much."*
 - **2:40** `pip install vitabench` + the 3-function adapter. *"Twenty lines. Bring your agent. Tomorrow the board has its name."*
 - **2:55** Repo. *"VitaBench. What survives when the session ends."*
 
