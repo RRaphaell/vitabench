@@ -26,10 +26,11 @@ def grep_memory(lines: Sequence[str], who: str, npc_id: str, limit: int = GREP_M
     keys = name_keys(who, npc_id)
     if not keys:
         return []
+    surname = who.split()[-1].strip(".:;()").lower() if who.split() else ""
     scored: dict[str, tuple[int, int]] = {}
     for index, line in enumerate(lines):
         text = clean_line(str(line))
-        matched = sum(1 for key in keys if key in text.lower())
+        matched = sum(2 if key == surname else 1 for key in keys if key in text.lower())
         if text and matched:
             scored[text] = (matched, index)
     ranked = sorted(scored, key=lambda text: scored[text], reverse=True)
