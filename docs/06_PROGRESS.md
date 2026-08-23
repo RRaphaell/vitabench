@@ -10,7 +10,7 @@
 | W5 viewer world | W5 | diorama renders (island, canals, 3 kits, props, day/night, plague/war) | 17:15 |
 | W6 viewer actors + camera | W6 agent | working: characters/path/people/hero/camera/effects + ?dev=actors demo, screenshot green | 17:20 |
 | W7 viewer UI + state | W7 agent | working: store/replayer/transport, full HUD, moments, timeline, fixture, screenshots | 17:45 |
-| W8 docs/demo/README | orchestrator | docs written | 16:40 |
+| W8 docs/demo/README | orchestrator | README results + limitations, deck, draft text, demo life (seed 2), backup video | 18:18 |
 
 ## Decisions
 - 16:40 Name: VitaBench. Package `vitabench`. Viewer style: Simile-like isometric diorama (orthographic), Kenney kits. No heirs tonight. NPC decisions rule-based; dialogue may be LLM-phrased.
@@ -18,6 +18,7 @@
 - 16:40 Agents do not commit; orchestrator commits after each wave.
 
 ## Orchestrator log
+- 18:18 **Demo = v1 seed 2** (61 years, memory 5/8, negatives 3/3, $6.29). Final v1 board n=6: sensible 0.598 · claude-code 0.545 [0.38,0.72] (M 0.40, N 7/7, L 0.38, $2.96/life) · random 0.378 · goldfish 0.287. Retrieval made time-safe (no end-of-life file) and surname-ranked. Backup video `runs/demo/video/demo.mp4` (gitignored). Deck refreshed. Draft text in docs/07.
 - 17:58 Wave 2 + E3 committed (9897366). Viewer reviewed on the real demo life: follow camera with gold silhouette, plague fog + red ring, memory strip from diaries, moment cards with retrieval, end card with cost/H. Found a probe flaw — ledger probes counted "forgot" when the agent had *declined the loan at plant time*; engine now voids those (`_declined_at_plant`), scoring skips voided, `scripts/void_declined.py` back-fills recorded traces. v1 lives: seeds 1,3,4,5 died 1348–49; seeds 0,2 alive past 1365.
 - 17:44 **World v1.** Found the plague double-count (event price_mult 1.8 × index 1.9 ≈ 3.4× food): 5 of 6 Sonnet lives on v0 died at 31 in 1349 (illness/starvation) while the scripted baseline survived every seed. Fixed events.yaml (black_death illness_mult 12→8, price_mult 1.8→1.25). v0 runs archived under runs/v0/ (kept for honesty: v0 board had Claude Code n=4 H=0.60 [0.47,0.77], M 0.52, N 3/3, $3.26/life). Baselines re-run on v1 (n=6): sensible 0.598, random 0.378, goldfish 0.287. Six Claude Code lives (seeds 0–5, sonnet) launched in parallel on v1 at 17:44.
 - 17:35 Cost records: the Claude adapter returns usage but did not write an `llm` trace record; injected from logs for v0 runs (E2 now writes live).

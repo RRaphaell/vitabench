@@ -30,6 +30,12 @@ uv run vitabench serve            # then: Claude Code lives through MCP (see doc
 uv run vitabench score runs/      # leaderboard.json with CIs
 ```
 
+## Watch the demo life
+```bash
+cd web && npm install && npm run dev          # http://localhost:5173/?run=demo
+```
+Keys: `1 / 2 / 3` speed · `→` next moment · `Space` pause/continue · `Tab` follow ↔ overview · drag to orbit, wheel to zoom · click a person. Any run in `runs/<name>/` opens with `?run=<name>`; a live life streams with `?ws=ws://localhost:8700/ws/<run_id>`.
+
 ## Results (tonight, Venice 1340 v1, persona Marco, 6 seeds per harness)
 Same world, same seeds; the harness is the variable. `H = 0.55·memory + 0.25·false-claims-rejected + 0.20·life`; memory is chance-corrected and averaged over delay buckets; 95% bootstrap CIs over seeds; cost beside the score, never inside it.
 
