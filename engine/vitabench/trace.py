@@ -215,6 +215,10 @@ def _moment(record: TraceRecord, superseded: set[str], log: MemoryLog) -> Moment
 def _enrich_frames(frames: list[AnyFrame], records: Sequence[TraceRecord]) -> list[AnyFrame]:
     """Attaches each season's plan and money/health deltas so the viewer can show what happened."""
     plans = {r.t: (r.payload.get("plan") or r.payload) for r in records if r.kind == "plan"}
+    texts = {
+        r.t: str((r.payload.get("observation") or {}).get("text") or "")
+        for r in records if r.kind == "observation"
+    }
     previous: Frame | None = None
     out: list[AnyFrame] = []
     for frame in frames:
@@ -227,7 +231,9 @@ def _enrich_frames(frames: list[AnyFrame], records: Sequence[TraceRecord]) -> li
                     "health": frame.hero.health - previous.hero.health,
                     "energy": frame.hero.energy - previous.hero.energy,
                 }
-            frame = frame.model_copy(update={"plan": dict(plan), "deltas": deltas})
+            frame = frame.model_copy(
+                update={"plan": dict(plan), "deltas": deltas, "observation_text": texts.get(frame.t, "")}
+            )
             previous = frame
         out.append(frame)
     return out

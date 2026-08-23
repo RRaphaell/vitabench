@@ -441,6 +441,7 @@ class Frame(Strict):
     relations: list[RelationFrame] = []
     plan: dict[str, Any] = {}
     deltas: dict[str, int] = {}
+    observation_text: str = ""
 
 
 class MomentFrame(Strict):

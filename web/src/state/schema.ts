@@ -31,7 +31,7 @@ export interface RelationFrame { id: string; name: string; role: string; world: 
 export interface Frame {
   type: 'frame'; t: number; date: string; hero: HeroFrame; people: PersonFrame[]; events: EventFrame[];
   news: string; memory: MemoryFrame; relations: RelationFrame[];
-  plan?: Record<string, unknown>; deltas?: Record<string, number>;
+  plan?: Record<string, unknown>; deltas?: Record<string, number>; observation_text?: string;
 }
 
 export type MomentKind = 'plant' | 'payoff' | 'negative' | 'quiz';
