@@ -320,6 +320,7 @@ class Plan(Lenient):
     rest_weeks: int = Field(default=0, ge=0, le=WEEKS_PER_SEASON)
     answers: list[Answer] = []
     diary: str = ""
+    recall: list[str] = []
 
 
 class DeathSummary(Strict):
