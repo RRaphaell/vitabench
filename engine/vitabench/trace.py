@@ -144,13 +144,14 @@ def _moment_label(kind: str, ok: bool | None, delay_seasons: int) -> str:
 
 
 INTENT_WORDS = {
-    "chat", "agree", "refuse", "pay", "ask_proof", "promise", "lend", "borrow", "none", "acted", "declined_at_plant"
+    "chat", "agree", "refuse", "pay", "ask_proof", "promise", "lend", "borrow",
+    "none", "acted", "declined_at_plant",
 }
 
 
 def _card_role(p: dict[str, Any], slots: dict[str, Any]) -> str:
     channel = p.get("channel") or slots.get("payoff_channel")
-    if channel == "news":
+    if channel == "news" or str(p.get("who") or "").lower().startswith("the criers"):
         return "news"
     if channel == "mother":
         return "mother"
