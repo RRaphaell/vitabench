@@ -103,7 +103,12 @@ async function boot(): Promise<void> {
 
   const stage: Stage = await createStage(renderer, store.hello);
   const camera = { toggle: () => stage.toggleCamera(), follow: () => stage.setCameraMode('follow') };
-  const ui = mountUi(root, store, replayer, camera, wantsTitle(params, source.run));
+  const withTitle = wantsTitle(params, source.run);
+  const introFlag = params.get('intro');
+  const ui = mountUi(root, store, replayer, camera, {
+    title: withTitle,
+    intro: introFlag !== null ? introFlag !== '0' : withTitle,
+  });
 
   if (params.get('view') === 'overview') stage.setCameraMode('overview');
 

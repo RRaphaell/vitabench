@@ -506,6 +506,58 @@ print(asyncio.run(run_life_with_claude('http://127.0.0.1:8700', '$RUN', spec.per
   All checks passed!
   ```
 ## W5 viewer world
+
+### wave 3 (V2) — the city is alive and time is legible
+
+Founder note after watching: *"10 years passed but only people walking; ships should move; time changes but only
+the lights change."* Everything below is inside `web/src/world/**` + `web/src/actors/**`; `stage.ts`, `main.ts` and
+`ui/**` are untouched.
+
+- **`world/live.ts` (new) — the frame bus.** `stage.ts` only forwards `{season, plague, war}` to `world.update`, so the
+  world used to be blind to `frame.events`, `frame.hero.activity` and `frame.people`. `actors/people.ts` now calls
+  `publishFrame(frame)` from its existing `applyFrame`, `citygen` calls `publishMap(map)` / `publishDoorstep(fn)`, and
+  `actors/hero.ts` publishes its anchor + mood. `citygen.update` folds all of it into one reused `SceneEnv`
+  (`{season, daylight, night, t, stamp, plague, war, flood, fire, festival, politics, crash, famine, visitor}`) and
+  passes it to boats/crowd/spectacle. No signature changed, no new call site is required of W7.
+- **`world/boats.ts` (new).** 16 gondolas (4 per canal, speeds 0.5–1.35 tiles/s) that run the canal, decelerate and
+  swing 180° at each end, each with an instanced gondolier; 3 cargo boats that shuttle to the Zattere shore, dwell
+  while their crates fade in/out, then leave; 4 galleys circling the lagoon only during `war`; one ship that sails in
+  at every season turn and carries a white letter when a probe visitor is live. Winter empties the outer lagoon.
+  Canal water and gondolas moved from `WATER_Y` (−0.95) to `CANAL_Y` (−0.5) — at −0.95 the boats sat below the
+  fondamenta and were invisible from the iso camera.
+- **`world/crowd.ts` (new).** 96 ambient walkers in one `InstancedMesh` (capsule + head, class-tinted via
+  `instanceColor`), random-walking the street grid with no pathfinding: market/campo walkers dwell at their anchor by
+  day, everyone heads home and fades out at night, plague cuts the crowd to a third and lays a few of them down,
+  festival/politics fills the campo.
+- **`world/spectacle.ts` (new).** Smoke columns (instanced puffs) — 3 for war, 1 for a fire event on a re-rolled
+  random building; an acqua-alta plane that rises over the campo for the flood's duration; plague carts on the
+  streets; red/gold banners on the open tiles round the campo for war/festival/politics; the stall layer hidden on a
+  market crash.
+- **Seasons.** `batch.ts` gained a `layer` on `Placement`, so the merged city splits into `base|roof|snow|foliage|
+  stall|banner` meshes that can be tinted or hidden at runtime. Every roof gets a white shell copy (`snow`, scale
+  1.04) shown only in winter; `snow`/`foliage` meshes drop the kit texture so the material colour is the whole
+  colour — foliage is now spring green / summer green / autumn ochre / winter brown, and the island slab pales in
+  winter. Sun power and hemisphere lift are per-season (`SEASON_SUN_POWER`).
+- **Hero (`actors/hero.ts`).** The frame keeps the hero at his home tile even while "working at Arsenale", so the
+  activity icon now picks the destination — 🔨 work place, 🍷 tavern, 🙏 church, 🗣/🛏/😴 home — resolved through
+  `doorstepOf()` (the open tile beside the building, scored for canal/plaza frontage). Standing at work raises an
+  anvil + swinging hammer + turning rope coil; resting or fevered lights a hearth `PointLight` at his house.
+- **Talking (`actors/people.ts`).** A person with `talking: true` (any visitor; the mother only while the hero's
+  activity is 🗣) re-paths to the tile beside the hero and turns to face him, and the hero turns back — the
+  "visitor walks up before the moment card" beat. **Hook for W7:** `import { getTalkTarget } from './actors/people'`
+  → `{ id, hero: Vector3, npc: Vector3 } | null` in world space at bubble height, a reused object (do not keep a
+  reference). `stage.talkingBubble()` now returns that anchor first, so existing DOM bubbles keep working unchanged.
+- **Camera.** Follow mode drifts 1°/s until the user drags; `setMode`/`toggle` re-arms it.
+- **Cost.** +11 draw calls (gondola, gondolier, cargo, crate, ship, letter, crowd, smoke, flood, cart, flag) and
+  +3 merged meshes (snow/foliage/stall split). Per-frame allocations were removed from the hot paths, including the
+  five `new Color(...)` per frame that `lighting.ts` already had.
+
+**Verified.** `npx tsc --noEmit` clean, `npm run build` green, screenshots at 1920x1080 in `runs/demo/screens/life_*.png`
+(spring/summer/autumn/winter, plague, war, flood, festival, market crash, hero at work, visitor + letter ship).
+Note for anyone reading the fps numbers in those runs: SwiftShader is fill-bound at ~2–3 fps at 1920x1080, and because
+`main.ts` clamps `dt` to 0.1 the whole world runs at ~1/4 speed under it — the day/night loop takes ~3 real minutes
+there instead of 45 s.
+
 - 17:15 **Done (F13 partial, J2, N2):** `web/src/world/{constants,types,rng,assets,batch,island,buildings,props,lighting,citygen}.ts`, `web/src/dev/{world_demo,assets_probe,world.html}` and the map fixture `web/src/dev/fixtures/map_venice.ts` (24x18, canals x∈{7,16} z∈{5,12}, 14 places, 6 landmarks).
 - **Public API for W6/W7:** `buildWorld(scene, map: MapSpec, seed): WorldHandles` from `world/citygen.ts` returns immediately (island + water + lights are up on frame 1) and finishes the kit-built city asynchronously; `await preloadWorld()` first if you need the city present before the first render. `WorldHandles = { tileToWorld, isWalkable, grid, placeXZ, update(dt, {season, plague, war}), dispose }` as specified. `placeXZ` falls back to island centre for unknown ids. **Camera contract:** put the orthographic camera at radius `CAMERA_RADIUS` (90, `world/constants.ts`) from the target — the scene fog is tuned to that distance; a much closer/farther camera will fog the city or flatten it. Suggested iso: yaw 45°, pitch `atan(1/√2)`, frustum height 8–40 (`?zoom=` in the demo).
 - **Rendering approach:** every static kit piece is merged into one geometry per kit (3 draw calls for the whole city) with per-building tint baked into vertex colors; lanterns/fences use `InstancedMesh` (>20 copies rule); gondolas/ships stay separate `Object3D`s. `?dev=world` guard is in `dev/world_demo.ts` (importable by `main.ts`); `?probe=1` guard is in `dev/assets_probe.ts`; both also work standalone at `/src/dev/world.html` in `vite dev`.
@@ -585,6 +637,32 @@ if (new URLSearchParams(location.search).get('dev') === 'actors') {
 3. W5 — no interface change needed; `web/src/world/types.ts` matches what `actors/types.ts` declares.
 
 ## W7 viewer UI + state
+
+### wave 4 — 20:0x "make it explain itself" (V1; `web/src/ui/**`, `web/src/main.ts`)
+Founder's complaint after watching: nothing on screen says what the benchmark *is*. Everything below is plain-English framing built on the new `frame.plan` / `frame.deltas` that `trace._enrich_frames` now writes into `frames.json`.
+
+- **New `ui/plan.ts`** — the only place that reads `frame.plan`/`frame.deltas`. Note `store.frameAt()` drops both when it interpolates, so UI code reads the raw frame via `rawFrame(s, t) = s.frames[s.indexAt(t)]`. `store.ts` was not touched.
+- **Intro captions** (`ui/intro.ts`) — three 4 s captions after the title card, bottom-centre between the rails, skippable with space; `body.vb-intro` hides the season card and key strip while they play. `?intro=1` forces them on for screenshots.
+- **Life chronicle** (`ui/chronicle.ts`, top-priority addition) — right rail under the memory panel, newest first, `max-height: 46vh`, scrollable, 200 ms fade on append. Per season: `📜 news`, the season line (`1348 · Autumn — 🔨 worked 8 wks · 🍞 plain · 💰 −7 ❤ −7`), `✔/✘/◇` test lines, then `✍ "last thing it wrote"`. Rebuilds on backward seek, appends forward; capped at 420 rows.
+- **Season card** (`ui/season.ts`) — one nowrap line bottom-left above the timeline, built from the plan; the diary quote is word-fitted to the remaining width and parts drop right-to-left if it still overflows.
+- **Panels renamed/explained** — memory widget is now `agent's memory / what it wrote down` with a `?` toggle (last 2 writes, was 3); a history strip under the clock (`📜 latest: 1348 · …`); hero meters get hover labels outside the card and floating ±deltas; hero sub-line reads `age 30 · played by claude-code`.
+- **Moment card** — header `MEMORY TEST · PLANTED 1343 · TESTED 1344 · 1 YEAR LATER` (negatives read `FALSE-CLAIM TEST · NOTHING WAS EVER PLANTED`), three labelled blocks, and a verdict under the stamp. `claimText()` strips the duplicated `"{who} says:"` prefix the engine already puts in `claim`.
+- **End card** — plain rows: `Lived 39 years (1340–1379) · died of starvation`, money, goals, `Memory tests passed 5 of 8`, false claims, `API cost of this life $6.29`, `VitaBench score 0.67` + the formula line. `H score` is gone everywhere.
+- **Leaderboard** — subtitle, a one-line description per row, `◀ this replay` on the row matching `hello.harness`+`model`, columns `agent setup / lives / VitaBench score / CI / $ per life`.
+- **Help overlay** — `h` or `?` opens a six-row legend of the screen plus the key list; `h`/`esc`/`space` closes.
+- **Gotcha fixed:** the old `styles.css` relied on `.hidden` being *repeated* after `.scrim` to win on source order. Consolidating the duplicates made every scrim render at once (first screenshot pass was a stack of overlays). `.hidden` is now `display: none !important`, declared once at the end of the file.
+- **Still open:** `scores.money` (20) disagrees with the last frame's `hero.money` (0); the end card uses the frame value so it matches the meters. The chronicle's `✍` line and the memory panel's top card show the same text by design (the panel is the full note, the chronicle is the timeline position).
+
+**Verify**
+```
+cd web && npm run build && npx tsc --noEmit -p tsconfig.json
+```
+```
+✓ built in 1.35s
+(tsc clean across web/src)
+```
+Screenshots (1600×900, SwiftShader, `?run=demo`) in `runs/demo/screens/ux_*.png`: `ux_t0`, `ux_t34`, `ux_t126`, `ux_moment_17/58/128`, `ux_end`, `ux_board`, `ux_drawer`, `ux_help`, `ux_hover`, `ux_intro_c2/c3`, `ux_play12x`. A scripted flow probe confirmed title → intro → skip → 12× (chronicle 1 → 100 rows, still scrolled to top, deltas animating) → `→` opens the moment card → `h` toggles help, with zero console errors. Intro caption 1 is confirmed by DOM probe only — a SwiftShader screenshot takes ~4 s to read back, so it always lands on caption 2 or later.
+
 
 ### wave 3 — 18:55 stage polish (V1; `web/src/ui/**`, `web/src/main.ts`, `scripts/screenshot.mjs`)
 **Title card.** `ui/cards.ts` `mountTitleCard`: full-black overlay, Fraunces 52px "Every agent dies when its session ends.", gold "VitaBench — the benchmark for what survives.", pulsing "press space". Shown when `?title=1`, or automatically when the resolved run is `demo` and no `?t=` is present (so `screenshot.mjs` and any deep link are never blocked; `?title=0` forces it off). `main.ts` now returns the resolved run name from `pickSource` to decide that. Any key or click dismisses: the overlay fades 0.5 s, the camera is forced to `follow`, and `setSpeedIndex(0)` starts playback at 1x. Key routing for the overlays lives in `ui/index.ts` on a **capture-phase** window listener so it runs before the HUD's bubble listener and can swallow the key.

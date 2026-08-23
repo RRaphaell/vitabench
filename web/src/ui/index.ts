@@ -2,12 +2,17 @@ import { Replayer } from '../state/replayer';
 import { Store } from '../state/store';
 import { mountBanner } from './banner';
 import { type Card, mountBringCard, mountTitleCard } from './cards';
+import { mountChronicle } from './chronicle';
+import { el } from './dom';
+import { mountHelp } from './help';
 import { mountHero } from './hero';
 import { type Chapter, mountHud } from './hud';
 import { mountInspector } from './inspector';
+import { type Intro, mountIntro } from './intro';
 import { mountLeaderboard } from './leaderboard';
 import { mountMemory } from './memory';
 import { mountMoments } from './moments';
+import { mountSeason } from './season';
 import { mountTimeline } from './timeline';
 
 export interface Ui {
@@ -19,6 +24,11 @@ export interface Ui {
 export interface CameraControl {
   toggle(): void;
   follow(): void;
+}
+
+export interface UiOptions {
+  title?: boolean;
+  intro?: boolean;
 }
 
 function chapterT(store: Store, chapter: Chapter): number | null {
@@ -36,9 +46,14 @@ export function mountUi(
   store: Store,
   replayer: Replayer,
   camera: CameraControl,
-  withTitle = false,
+  options: UiOptions = {},
 ): Ui {
-  const hud = mountHud(root, {
+  const leftRail = el('div', 'rail left');
+  const rightRail = el('div', 'rail right');
+  root.append(leftRail, rightRail);
+
+  const help = mountHelp(root);
+  const hud = mountHud(root, leftRail, {
     onTogglePause: () => replayer.togglePaused(),
     onSpeed: (i) => replayer.setSpeedIndex(i),
     onNextMoment: () => replayer.jumpToNextMoment(),
@@ -47,9 +62,12 @@ export function mountUi(
       const t = chapterT(store, chapter);
       if (t !== null) replayer.seek(t, true);
     },
+    onHelp: () => help.toggle(),
   });
-  const hero = mountHero(root);
-  const memory = mountMemory(root);
+  const hero = mountHero(root, leftRail);
+  const memory = mountMemory(rightRail);
+  const chronicle = mountChronicle(rightRail);
+  const season = mountSeason(root);
   const timeline = mountTimeline(root, { onSeek: (t) => replayer.seek(t) });
   const banner = mountBanner(root);
   const inspector = mountInspector(root);
@@ -60,13 +78,22 @@ export function mountUi(
   });
   const bring = mountBringCard(root);
 
+  let intro: Intro | null = null;
+  const startIntro = () => {
+    if (intro || !options.intro) return;
+    intro = mountIntro(root, store.hello?.persona.name ?? 'Marco Dandolo');
+  };
+
   let title: Card | null = null;
-  if (withTitle) {
+  if (options.title) {
     replayer.setPaused(true);
     title = mountTitleCard(root, () => {
       camera.follow();
       replayer.setSpeedIndex(0);
+      startIntro();
     });
+  } else {
+    startIntro();
   }
 
   window.addEventListener(
@@ -78,7 +105,19 @@ export function mountUi(
         title.close();
         return;
       }
+      if (help.open && (ev.code === 'Space' || ev.code === 'Escape' || ev.code === 'KeyH' || ev.key === '?')) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        help.close();
+        return;
+      }
       if (ev.code !== 'Space') return;
+      if (intro?.open) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        intro.skip();
+        return;
+      }
       if (bring.open) {
         ev.preventDefault();
         ev.stopPropagation();
@@ -101,6 +140,8 @@ export function mountUi(
     hud.update(s);
     hero.update(s);
     memory.update(s);
+    chronicle.update(s);
+    season.update(s);
     timeline.update(s);
     moments.update(s);
     banner.update(s, dt);

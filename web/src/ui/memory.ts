@@ -1,7 +1,10 @@
 import { Store } from '../state/store';
 import { clear, el, fitLines, show } from './dom';
 
-const LINES = 4;
+const LINES = 3;
+const KEEP = 2;
+const EXPLAINER =
+  'Between seasons the agent keeps nothing but a notes file it writes itself. These are the lines it added most recently — nobody edits them for it.';
 
 function iconFor(text: string): string {
   const s = text.toLowerCase();
@@ -11,19 +14,32 @@ function iconFor(text: string): string {
   return '\u{1F91D}';
 }
 
-export function mountMemory(root: HTMLElement): { update(s: Store): void } {
+export function mountMemory(host: HTMLElement): { update(s: Store): void } {
   const panel = el('div', 'panel memory');
-  const title = el('h3', '', 'memory');
+  const head = el('div', 'mem-head');
+  const title = el('h3', '', 'agent’s memory');
+  const ask = el('button', 'ask', '?');
+  ask.title = 'what is this?';
+  head.append(title, ask);
+  const sub = el('div', 'mem-sub', 'what it wrote down');
+  const note = el('div', 'mem-note hidden', EXPLAINER);
   const list = el('div', 'meters');
-  panel.append(title, list);
-  root.append(panel);
+  panel.append(head, sub, note, list);
+  host.append(panel);
+
+  let noteOpen = false;
+  ask.addEventListener('click', () => {
+    noteOpen = !noteOpen;
+    show(note, noteOpen);
+    ask.classList.toggle('on', noteOpen);
+  });
 
   let lastKey = 'unset';
   return {
     update(s: Store) {
       const f = s.frameAt(s.cursor);
       const wrote = f?.memory.wrote ?? [];
-      const recent = wrote.slice(-3).reverse();
+      const recent = wrote.slice(-KEEP).reverse();
       const key = recent.join('|');
       if (key === lastKey) return;
       lastKey = key;

@@ -13,6 +13,8 @@ interface Row {
 }
 
 const GOLD = 'claude-code';
+const SUBTITLE =
+  'Each row is one agent setup, run on the same lives (n). Higher is better; $ is the average API cost per life.';
 
 function count(row: Row): string {
   if (typeof row.n === 'number') return String(row.n);
@@ -41,19 +43,40 @@ function bar(row: Row): HTMLElement {
   return wrap;
 }
 
-
-const HARNESS_LABEL: Record<string, string> = {
-  'claude-code': 'Claude Code · memory.md',
-  'claude-code/caterina': 'Claude Code · Caterina',
-  'mock:sensible': 'scripted baseline',
-  'mock:goldfish': 'goldfish · no memory',
-  'mock:random': 'random plans',
+const MODEL_NAME: Record<string, string> = {
+  'claude-sonnet-5': 'Sonnet 5',
+  sonnet: 'Sonnet 5',
+  'claude-opus-5': 'Opus 5',
+  opus: 'Opus 5',
+  mock: '',
 };
-const MODEL_LABEL: Record<string, string> = { 'claude-sonnet-5': 'Sonnet', 'claude-opus-5': 'Opus', mock: '' };
-function labelFor(row: { harness?: string; model?: string }): string {
-  const harness = HARNESS_LABEL[row.harness ?? ''] ?? row.harness ?? '?';
-  const model = MODEL_LABEL[row.model ?? ''] ?? row.model ?? '';
+
+function modelKey(model: string): string {
+  return model.replace(/^claude-/, '').replace(/-\d+$/, '');
+}
+
+function nameFor(row: Row): string {
+  const harness = row.harness ?? '?';
+  const model = MODEL_NAME[row.model ?? ''] ?? row.model ?? '';
+  if (harness === 'claude-code') return `Claude Code · ${model || 'model?'}`;
+  if (harness === 'claude-code/caterina') return 'Claude Code · Caterina';
+  if (harness === 'mock:sensible') return 'scripted baseline';
+  if (harness === 'mock:goldfish') return 'goldfish';
+  if (harness === 'mock:random') return 'random';
   return model ? `${harness} · ${model}` : harness;
+}
+
+function aboutFor(row: Row): string {
+  const harness = row.harness ?? '';
+  const model = modelKey(row.model ?? '');
+  if (harness === 'claude-code') {
+    return `the Claude Code CLI with its own memory.md, ${model === 'opus' ? 'Opus 5' : 'Sonnet 5'}`;
+  }
+  if (harness === 'claude-code/caterina') return 'second persona, glassmaker’s daughter';
+  if (harness === 'mock:sensible') return 'no LLM: works every week, eats plain, pays known debts';
+  if (harness === 'mock:goldfish') return 'no memory: refuses every claim';
+  if (harness === 'mock:random') return 'random legal plans';
+  return 'an agent setup';
 }
 
 export function mountLeaderboard(root: HTMLElement, store: Store): { toggle(): void } {
@@ -71,23 +94,30 @@ export function mountLeaderboard(root: HTMLElement, store: Store): { toggle(): v
   const render = (rows: Row[]) => {
     clear(drawer);
     drawer.append(el('h3', '', 'leaderboard'));
+    drawer.append(el('div', 'lb-sub', SUBTITLE));
     if (!rows.length) {
       drawer.append(el('div', 'lb-empty', 'no scored runs yet'));
       return;
     }
     const table = el('table');
     const head = el('tr');
-    for (const h of ['harness', 'n', 'H', '', '$/life']) head.append(el('th', '', h));
+    for (const h of ['agent setup', 'lives', 'VitaBench score', '', '$ / life']) head.append(el('th', '', h));
     table.append(head);
-    const mine = store.hello?.harness ?? GOLD;
+    const mine = store.hello?.harness ?? '';
+    const mineModel = modelKey(store.hello?.model ?? '');
     for (const row of rows.sort((a, b) => (b.H ?? 0) - (a.H ?? 0))) {
-      const tr = el('tr', row.harness === mine || row.harness === GOLD ? 'mine' : '');
-      tr.append(el('td', 'who', labelFor(row)));
-      tr.append(el('td', '', count(row)));
-      tr.append(el('td', '', typeof row.H === 'number' ? row.H.toFixed(3) : '—'));
-      const cell = el('td', 'ci-cell');
-      cell.append(bar(row));
+      const isMine = row.harness === mine && modelKey(row.model ?? '') === mineModel;
+      const tr = el('tr', isMine || row.harness === GOLD ? 'mine' : '');
+      const cell = el('td', 'who');
+      const title = el('div', 'lb-name', nameFor(row));
+      if (isMine) title.append(el('span', 'lb-here', '◀ this replay'));
+      cell.append(title, el('div', 'lb-about', aboutFor(row)));
       tr.append(cell);
+      tr.append(el('td', '', count(row)));
+      tr.append(el('td', '', typeof row.H === 'number' ? row.H.toFixed(2) : '—'));
+      const ciCell = el('td', 'ci-cell');
+      ciCell.append(bar(row));
+      tr.append(ciCell);
       const cost = row.cost_usd ?? row.cost;
       tr.append(el('td', '', typeof cost === 'number' ? `$${cost.toFixed(2)}` : '—'));
       table.append(tr);
