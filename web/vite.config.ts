@@ -62,7 +62,8 @@ function runsPlugin(): Plugin {
 }
 
 export default defineConfig({
+  base: process.env.VITE_BASE ?? '/',
   plugins: [runsPlugin()],
   server: { fs: { allow: ['..'] } },
-  build: { target: 'es2022', sourcemap: true },
+  build: { target: 'es2022', sourcemap: true, assetsDir: 'static' },
 });

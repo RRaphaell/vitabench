@@ -1,0 +1,12 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "vitabench",
+  "compatibility_date": "2026-08-01",
+  "workers_dev": true,
+  "routes": [
+    { "pattern": "vitabench.dev", "custom_domain": true },
+    { "pattern": "www.vitabench.dev", "custom_domain": true }
+  ],
+  "assets": { "directory": "../site", "not_found_handling": "404-page", "html_handling": "auto-trailing-slash" },
+  "observability": { "enabled": true }
+}

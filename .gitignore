@@ -12,3 +12,5 @@ engine/.ruff_cache/
 .DS_Store
 *.log
 runs/demo/video/
+site/
+deploy/node_modules/
