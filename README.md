@@ -2,7 +2,7 @@
 
 **The benchmark for what survives when the session ends.** Your agent lives one human life in a real city at a real moment in history — Venice, 1340–1380 — season by season: it works, eats, talks, buys, rests, while the Black Death and the War of Chioggia arrive on their real dates. Facts planted early pay off decades later as *decisions*, not quizzes: a cooper who lent you money, a promise to your mother, a stranger's false claim. We score how it lived, what it remembered, what it made up, and what it cost.
 
-![VitaBench demo — Marco's life in Venice, replayed](docs/slides/img/demo.gif)
+![VitaBench — Marco living in Venice 1343, Claude Code at the controls](docs/slides/img/hero.png)
 
 > Built in one day at the AGI House × Coframe Long Horizon Agents Build Day (2026-08-22). Numbers below are from that day's runs; n is small and stated.
 
