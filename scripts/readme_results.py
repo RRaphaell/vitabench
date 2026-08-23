@@ -35,6 +35,12 @@ def main() -> None:
     readme = ROOT / "README.md"
     text = readme.read_text()
     text = re.sub(r"\| harness \| model \| n \|.*?\n(?=\n)", "\n".join(table) + "\n", text, count=1, flags=re.S)
+    claude = next((r for r in rows if r["harness"] == "claude-code" and r["model"].startswith("claude-sonnet")), None)
+    if claude:  # delay sentence
+        raw = claude.get("M_raw_by_delay") or {}
+        sentence = ("Claude Code memory pass rate by delay (raw, pooled): "
+                    f"1 season {raw.get('1', 0):.2f} · 1 year {raw.get('4', 0):.2f} · 10 years {raw.get('40', 0):.2f} · 25 years {raw.get('100', 0):.2f}.")
+        text = re.sub(r"Claude Code memory pass rate by delay \(raw[^.]*\)[^\n]*\.", sentence, text, count=1)
     readme.write_text(text)
     print(f"README table refreshed ({len(rows)} rows)")
 

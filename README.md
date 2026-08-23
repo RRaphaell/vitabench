@@ -2,6 +2,8 @@
 
 **The benchmark for what survives when the session ends.** Your agent lives one human life in a real city at a real moment in history — Venice, 1340–1380 — season by season: it works, eats, talks, buys, rests, while the Black Death and the War of Chioggia arrive on their real dates. Facts planted early pay off decades later as *decisions*, not quizzes: a cooper who lent you money, a promise to your mother, a stranger's false claim. We score how it lived, what it remembered, what it made up, and what it cost.
 
+![VitaBench demo — Marco's life in Venice, replayed](docs/slides/img/demo.gif)
+
 > Built in one day at the AGI House × Coframe Long Horizon Agents Build Day (2026-08-22). Numbers below are from that day's runs; n is small and stated.
 
 ## Why
@@ -49,7 +51,7 @@ Same world, same seeds; the harness is the variable. `H = 0.55·memory + 0.25·f
 | goldfish (no memory, refuses everything) | — | 6 | 0.29 | 0.00 | 12/18 | 0.60 | $0.00 |
 | random legal plans | — | 6 | 0.23 [0.03, 0.79] | 0.25 | — | 0.18 | $0.00 |
 
-Claude Code memory pass rate by delay (raw): 1 season 0.38 · 1 year 0.75 · 10 years 1.00 · 25 years 0.00. Probes the agent declined at plant time (refused the loan) are voided, not counted.
+Claude Code memory pass rate by delay (raw, pooled): 1 season 0.50 · 1 year 0.71 · 10 years 1.00 · 25 years 0.00.
 
 What the traces say: four of six Sonnet lives ended at 31–32 in the plague years of 1348–49; the two that survived lived to 60 and 61 and were bankrupted by the War of Chioggia. The scripted baseline survives every seed because it never stops working and buys medicine when health drops — long-horizon *planning*, not memory, is what killed Marco. On memory, Claude Code rejected every false claim (7/7) and its own `memory.md` shows why: it generalized — "the Morosini family are repeat scammers" — and it cited the rule on the next knock. It remembered 10-year-old facts every time and 25-year-old facts never.
 
