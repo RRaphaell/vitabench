@@ -582,6 +582,47 @@ if (new URLSearchParams(location.search).get('dev') === 'actors') {
 
 ## W7 viewer UI + state
 
+### wave 3 — 18:55 stage polish (V1; `web/src/ui/**`, `web/src/main.ts`, `scripts/screenshot.mjs`)
+**Title card.** `ui/cards.ts` `mountTitleCard`: full-black overlay, Fraunces 52px "Every agent dies when its session ends.", gold "VitaBench — the benchmark for what survives.", pulsing "press space". Shown when `?title=1`, or automatically when the resolved run is `demo` and no `?t=` is present (so `screenshot.mjs` and any deep link are never blocked; `?title=0` forces it off). `main.ts` now returns the resolved run name from `pickSource` to decide that. Any key or click dismisses: the overlay fades 0.5 s, the camera is forced to `follow`, and `setSpeedIndex(0)` starts playback at 1x. Key routing for the overlays lives in `ui/index.ts` on a **capture-phase** window listener so it runs before the HUD's bubble listener and can swallow the key.
+
+**Bring-your-agent card.** Press space on the end card and a second card opens (`mountBringCard`): Fraunces "Bring your agent", the three-function adapter (`on_birth` / `act` / `on_death`) and `vitabench run --scenario venice_1340 --agent my_agent.py` in IBM Plex Mono, `github.com/RRaphaell/vitabench` in gold. Space again goes back to the end card. Its scrim is 95% opaque so the end card and the HUD do not ghost through it (0.6 looked muddy — the first screenshot showed the gold leaderboard button bleeding through the code block).
+
+**Leaderboard drawer.** Projector-legible: table 17px, header 16px, drawer 544px, rows 8px tall padding, `$/life` right-aligned, `harness · model` `nowrap` (it wrapped to two lines at the old width). `claude-code` is gold whether or not it is the current run's harness, and its CI dot gets a gold halo. `n` falls back to `seeds.length` and any missing/`null` number renders `—`. The vite plugin already served `/runs/leaderboard.json` from the repo root in preview — verified with curl against `vite preview --port 5188`; no plugin change needed.
+
+**Memory strip.** Cards now fit **4 lines and break on words**: `dom.ts fitLines()` binary-searches the word count against the measured `scrollHeight` instead of letting `-webkit-line-clamp` cut mid-word ("keeping mothe…" is now "keeping mother home, saving what I can rather…"). Still max 3 cards, newest first.
+
+**Moment card.** The `harness retrieved:` line is clamped to 3 lines by the same word fit, with trailing punctuation stripped before the ellipsis (it read "that deal.…" before). A tiny mute uppercase mono tag (`recall` / `memory`) is appended at the end of the line when the moment carries `retrieved_source`; the field is absent from every frame in `runs/demo/frames.json`, so **the tag does not appear in any current screenshot** — the code reads it off the moment defensively without touching the frozen `schema.ts`.
+
+**Chapter keys.** `4` = first frame with an active `plague` event (t=33, 1348), `5` = first `war` (t=40, 1350), `6` = the end frame; each seeks **and pauses**, which keeps the event banner up (the banner only counts down while playing) and gives the presenter a held frame. `1/2/3` stay speeds. A key legend sits bottom-right above the timeline (`space pause · 1 2 3 speed · → next moment · 4 plague · 5 war · 6 end · tab camera`) and fades out after 5 s; `h` or `?` brings it back.
+
+**Screenshots.** `scripts/screenshot.mjs` gained three shots after the five it already took: `title` (`?title=1`), `drawer` (`?t=0` then click `.lb-btn`), `bring` (`?t=<end>` then Space). All eight now live in `runs/demo/screens/`.
+
+**Honest reading of the new shots (1600x900, SwiftShader):**
+- `title.png` — black, two serif lines centred, "PRESS SPACE" pulsing. Reads from across a room.
+- `drawer.png` — four rows, one line each, `claude-code · claude-sonnet-5  6  0.578  ⟨CI⟩  $2.96` in gold. The mock rows' CIs are so tight they render as a single dot; `mock:random`'s bar is wide. Honest, but a stranger may read the dots as "no CI".
+- `bring.png` — code block fits without horizontal scroll at 760px; the diorama behind is fully dimmed.
+- `t17.png` — retrieved line is exactly 3 lines, ends "I never made that deal…". `t34.png` memory cards are 4 lines and end on whole words.
+- Verified by hand and screenshotted (kept in scratch, not committed): `4` lands on 1348 Summer with the plague banner + red district ring, `5` on 1350 Spring with the war banner and galleys in the lagoon, `6` on the end card, `h` restores the key legend.
+
+**Left ugly / follow-ups:** the retrieved line for the criers-of-the-Rialto moment is a raw LESSON dump from the harness, so even 3 lines read as log text; the end card's `ducats at death` comes from the last frame's hero (0) while `scores.money` says 20 — someone should decide which is the truth; the key legend's 5 s timer starts at UI mount, and on SwiftShader the first 60 frames take longer than that, so it is already gone by the time a screenshot lands (fine on real hardware, and `h` re-shows it); `retrieved_source` is not emitted by the engine yet.
+
+**Verify**
+```
+cd web && npm run build && npx tsc --noEmit -p tsconfig.json && node ../scripts/screenshot.mjs ../runs/demo
+```
+```
+✓ built in 809ms
+TSC CLEAN
+saved .../runs/demo/screens/t0.png
+saved .../runs/demo/screens/follow_12.png
+saved .../runs/demo/screens/t34.png
+saved .../runs/demo/screens/t17.png
+saved .../runs/demo/screens/t157.png
+saved .../runs/demo/screens/title.png
+saved .../runs/demo/screens/drawer.png
+saved .../runs/demo/screens/bring.png
+```
+
 ### wave 2 — 17:45 viewer polish (V1; covers all of `web/src`, `scripts/screenshot.mjs`, `web/vite.config.ts`)
 **Real runs.** `web/vite.config.ts` serves the repo's `runs/` through a plugin in both `vite dev` and `vite preview` (`/runs/<name>/frames.json`, plus `/runs/index.json` listing every run dir that has a `frames.json`, newest first). `main.ts` tries `/runs/<run>/frames.json` then `http://localhost:8700/runs/<run>/frames`; with no `?run=` it tries `demo` then the newest run from the index. The fixture fallback is gone — `dev/fixtures/{stage,fallback_stage}.ts` deleted, composition moved to `web/src/stage.ts`; `demo_frames.json` stays only as `make_fixture.mjs` output. If nothing loads the page says so instead of faking a life.
 

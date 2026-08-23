@@ -62,12 +62,16 @@ const frames = JSON.parse(readFileSync(resolve(runDir, 'frames.json'), 'utf8'));
 const rows = Array.isArray(frames) ? frames : (frames.frames ?? []);
 const payoff = rows.find((f) => f.type === 'moment' && f.kind !== 'plant');
 const end = rows.find((f) => f.type === 'end');
+const endT = end ? end.t : 172;
 const shots = [
-  ['t0', 0],
-  ['follow_12', 12],
-  ['t34', 34],
-  [`t${payoff ? payoff.t : 126}`, payoff ? payoff.t : 126],
-  [`t${end ? end.t : 172}`, end ? end.t : 172],
+  ['t0', 't=0', null],
+  ['follow_12', 't=12', null],
+  ['t34', 't=34&view=overview', null],
+  [`t${payoff ? payoff.t : 126}`, `t=${payoff ? payoff.t : 126}`, null],
+  [`t${endT}`, `t=${endT}`, null],
+  ['title', 'title=1', null],
+  ['drawer', 't=0', 'drawer'],
+  ['bring', `t=${endT}`, 'space'],
 ];
 
 const outDir = resolve(runDir, 'screens');
@@ -82,11 +86,18 @@ page.on('console', (msg) => {
 });
 page.on('pageerror', (err) => console.log(`  [page error] ${err.message}`));
 
-for (const [name, t] of shots) {
-  const overview = name === 't34' ? '&view=overview' : '';
-  await page.goto(`${origin}/?run=${runId}&t=${t}${overview}`, { waitUntil: 'load' });
+for (const [name, query, action] of shots) {
+  await page.goto(`${origin}/?run=${runId}&${query}`, { waitUntil: 'load' });
   await page.waitForFunction('window.vitabenchFrames > 60', null, { timeout: 40000 }).catch(() => {});
   await page.waitForTimeout(6000);
+  if (action === 'drawer') {
+    await page.click('.lb-btn');
+    await page.waitForTimeout(900);
+  }
+  if (action === 'space') {
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(1200);
+  }
   const file = resolve(outDir, `${name}.png`);
   await page.screenshot({ path: file });
   console.log(`saved ${file}`);

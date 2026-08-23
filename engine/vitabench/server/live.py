@@ -200,6 +200,8 @@ class LiveLife:
                 self.trace.write("event", int(event.get("t", self.t)), event)
             self._write_memory(parsed)
             self._write_probes()
+            if self.world.t >= self.world.max_t:
+                self.world.alive = False
             if not self.world.alive:
                 return self._finish()
             return self._publish_observation()

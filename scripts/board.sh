@@ -54,6 +54,15 @@ for src in "$RUNS"/claude_sonnet_s*/; do
   [ -d "$src" ] || continue
   copy_run "${src%/}" "$(basename "$src")" claude
 done
+CLAUDE_MODEL="claude-sonnet-5"
+for src in "$RUNS"/claude_caterina_s*/; do
+  [ -d "$src" ] || continue
+  copy_run "${src%/}" "$(basename "$src")" claude
+  python3 - "$BOARD/$(basename "$src")/meta.json" <<'PYM'
+import json, sys
+path = sys.argv[1]; meta = json.load(open(path)); meta.update(harness="claude-code/caterina", persona="caterina"); json.dump(meta, open(path, "w"), indent=2)
+PYM
+done
 CLAUDE_MODEL="claude-opus-5"
 for src in "$RUNS"/claude_opus_s*/; do
   [ -d "$src" ] || continue

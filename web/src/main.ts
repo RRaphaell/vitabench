@@ -21,20 +21,31 @@ async function runNames(): Promise<string[]> {
   }
 }
 
-async function pickSource(params: URLSearchParams, replayer: Replayer): Promise<Transport | null> {
+interface Source {
+  transport: Transport | null;
+  run: string | null;
+}
+
+async function pickSource(params: URLSearchParams, replayer: Replayer): Promise<Source> {
   const ws = params.get('ws');
   if (ws) {
     const transport = new Transport(ws, store);
     transport.open();
-    return transport;
+    return { transport, run: null };
   }
   const named = params.get('run');
   for (const run of named ? [named] : await runNames()) {
     for (const url of [`/runs/${run}/frames.json`, `${ENGINE}/runs/${run}/frames`]) {
-      if (await replayer.loadFromUrl(url)) return null;
+      if (await replayer.loadFromUrl(url)) return { transport: null, run };
     }
   }
-  return null;
+  return { transport: null, run: null };
+}
+
+function wantsTitle(params: URLSearchParams, run: string | null): boolean {
+  const flag = params.get('title');
+  if (flag !== null) return flag !== '0';
+  return run === 'demo' && !params.has('t');
 }
 
 async function runDevMount(name: string, root: HTMLElement): Promise<boolean> {
@@ -80,8 +91,8 @@ async function boot(): Promise<void> {
   root.append(renderer.domElement);
 
   const replayer = new Replayer(store);
-  const transport = await pickSource(params, replayer);
-  if (transport) {
+  const source = await pickSource(params, replayer);
+  if (source.transport) {
     const deadline = performance.now() + 4000;
     while (!store.hello && performance.now() < deadline) await new Promise((r) => setTimeout(r, 100));
   }
@@ -91,7 +102,8 @@ async function boot(): Promise<void> {
   }
 
   const stage: Stage = await createStage(renderer, store.hello);
-  const ui = mountUi(root, store, replayer, () => stage.toggleCamera());
+  const camera = { toggle: () => stage.toggleCamera(), follow: () => stage.setCameraMode('follow') };
+  const ui = mountUi(root, store, replayer, camera, wantsTitle(params, source.run));
 
   if (params.get('view') === 'overview') stage.setCameraMode('overview');
 

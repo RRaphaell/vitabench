@@ -3,6 +3,7 @@ import { Store } from '../state/store';
 import { clear, el, show } from './dom';
 
 const REVEAL_MS = 1200;
+const RETRIEVED_LINES = 3;
 
 export interface MomentsDeps {
   onContinue(): void;
@@ -13,6 +14,35 @@ function stampFor(m: MomentFrame): { text: string; ok: boolean } {
   if (m.kind === 'negative') return m.ok ? { text: '✔ REJECTED', ok: true } : { text: '✘ CONFABULATED', ok: false };
   if (!m.ok) return { text: '✘ FORGOT', ok: false };
   return { text: `✔ ${(m.label || 'remembered').toUpperCase()}`, ok: true };
+}
+
+function sourceTag(m: MomentFrame): string | null {
+  const raw = (m as unknown as { retrieved_source?: unknown }).retrieved_source;
+  if (typeof raw !== 'string' || !raw.trim()) return null;
+  return /recall/i.test(raw) ? 'recall' : 'memory';
+}
+
+function fillRetrieved(box: HTMLElement, text: string, tag: string | null): void {
+  const lineHeight = parseFloat(getComputedStyle(box).lineHeight) || 24;
+  const max = lineHeight * RETRIEVED_LINES + 2;
+  const words = text.split(/\s+/);
+  const paint = (n: number) => {
+    clear(box);
+    const cut = `${words.slice(0, n).join(' ').replace(/[\s.,;:·—–-]+$/, '')}… `;
+    box.append(document.createTextNode(n < words.length ? cut : `${text} `));
+    if (tag) box.append(el('span', 'src', tag));
+  };
+  paint(words.length);
+  if (!box.scrollHeight || box.scrollHeight <= max) return;
+  let lo = 1;
+  let hi = words.length;
+  while (lo < hi) {
+    const mid = Math.ceil((lo + hi) / 2);
+    paint(mid);
+    if (box.scrollHeight <= max) lo = mid;
+    else hi = mid - 1;
+  }
+  paint(lo);
 }
 
 function num(scores: Record<string, unknown>, key: string, fallback: number): number {
@@ -26,7 +56,7 @@ export function mountMoments(root: HTMLElement, deps: MomentsDeps): { update(s: 
   const who = el('div', 'who', '');
   const role = el('div', 'role', '');
   const claim = el('div', 'claim', '');
-  const retrieved = el('div', 'line', '');
+  const retrieved = el('div', 'line ret', '');
   const action = el('div', 'line act', '');
   const stamp = el('div', 'stamp', '');
   const hint = el('div', 'hint', 'space to continue');
@@ -51,6 +81,7 @@ export function mountMoments(root: HTMLElement, deps: MomentsDeps): { update(s: 
 
   let shownEnd = false;
   let armed: string | null = null;
+  let filled: string | null = null;
   let ready = false;
   return {
     update(s: Store) {
@@ -66,13 +97,19 @@ export function mountMoments(root: HTMLElement, deps: MomentsDeps): { update(s: 
           }, REVEAL_MS);
         }
       }
-      show(scrim, !!m && ready && !s.endOpen);
-      if (m) {
+      const live = !!m && ready && !s.endOpen;
+      show(scrim, live);
+      if (m && `${key}:${live}` !== filled) {
+        filled = `${key}:${live}`;
         who.textContent = m.who;
         role.textContent = m.role;
         claim.textContent = `“${m.claim}”`;
-        retrieved.textContent = m.retrieved ? `harness retrieved: ${m.retrieved}` : '— nothing retrieved —';
         retrieved.classList.toggle('none', !m.retrieved);
+        fillRetrieved(
+          retrieved,
+          m.retrieved ? `harness retrieved: ${m.retrieved}` : '— nothing retrieved —',
+          m.retrieved ? sourceTag(m) : null,
+        );
         action.textContent = `agent: ${m.action}`;
         const st = stampFor(m);
         stamp.textContent = st.text;

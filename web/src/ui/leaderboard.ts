@@ -4,11 +4,19 @@ import { clear, el, show } from './dom';
 interface Row {
   harness?: string;
   model?: string;
-  n?: number;
-  H?: number;
-  cost?: number;
-  cost_usd?: number;
+  n?: number | null;
+  seeds?: unknown[];
+  H?: number | null;
+  cost?: number | null;
+  cost_usd?: number | null;
   ci?: number[] | { H?: number[] };
+}
+
+const GOLD = 'claude-code';
+
+function count(row: Row): string {
+  if (typeof row.n === 'number') return String(row.n);
+  return Array.isArray(row.seeds) ? String(row.seeds.length) : '—';
 }
 
 const SOURCES = ['/runs/leaderboard.json', 'http://localhost:8700/runs/leaderboard.json'];
@@ -56,11 +64,11 @@ export function mountLeaderboard(root: HTMLElement, store: Store): { toggle(): v
     const head = el('tr');
     for (const h of ['harness', 'n', 'H', '', '$/life']) head.append(el('th', '', h));
     table.append(head);
-    const mine = store.hello?.harness ?? '';
+    const mine = store.hello?.harness ?? GOLD;
     for (const row of rows.sort((a, b) => (b.H ?? 0) - (a.H ?? 0))) {
-      const tr = el('tr', row.harness === mine ? 'mine' : '');
+      const tr = el('tr', row.harness === mine || row.harness === GOLD ? 'mine' : '');
       tr.append(el('td', 'who', `${row.harness ?? '?'} · ${row.model ?? '?'}`));
-      tr.append(el('td', '', String(row.n ?? '—')));
+      tr.append(el('td', '', count(row)));
       tr.append(el('td', '', typeof row.H === 'number' ? row.H.toFixed(3) : '—'));
       const cell = el('td', 'ci-cell');
       cell.append(bar(row));

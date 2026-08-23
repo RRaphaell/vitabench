@@ -1,5 +1,7 @@
 import { Store } from '../state/store';
-import { clear, el, show } from './dom';
+import { clear, el, fitLines, show } from './dom';
+
+const LINES = 4;
 
 function iconFor(text: string): string {
   const s = text.toLowerCase();
@@ -26,12 +28,14 @@ export function mountMemory(root: HTMLElement): { update(s: Store): void } {
       if (key === lastKey) return;
       lastKey = key;
       clear(list);
+      show(panel, recent.length > 0);
       for (const text of recent) {
         const card = el('div', 'mem-card');
-        card.append(el('span', 'ico', iconFor(text)), el('span', '', text));
+        const body = el('span', 'mem-text');
+        card.append(el('span', 'ico', iconFor(text)), body);
         list.append(card);
+        fitLines(body, text, LINES);
       }
-      show(panel, recent.length > 0);
     },
   };
 }
