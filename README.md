@@ -47,10 +47,10 @@ Same world, same seeds; the harness is the variable. `H = 0.55·memory + 0.25·f
 | harness | model | n | H [95% CI] | memory | false claims rejected | life | $/life |
 |---|---|---|---|---|---|---|---|
 | scripted baseline (works, eats plain, pays known debts) | — | 6 | 0.60 [0.57, 0.61] | 0.44 | 17/18 | 0.60 | $0.00 |
-| **Claude Code** (`memory.md` + auto-compaction, `recall` field) | claude-sonnet-5 | 12 | 0.58 [0.54, 0.63] | 0.45 | 20/20 | 0.42 | $3.85 |
-| claude-code/caterina | claude-sonnet-5 | 2 | 0.44 [0.44, 0.64] | 0.19 | 4/4 | 0.42 | $5.71 |
+| **Claude Code** (`memory.md` + auto-compaction, `recall` field) | Sonnet 5 | 12 | 0.58 [0.54, 0.63] | 0.45 | 20/20 | 0.42 | $3.85 |
+| Claude Code, second persona *Caterina* (glassmaker's daughter) | Sonnet 5 | 2 | 0.44 [0.44, 0.64] | 0.19 | 4/4 | 0.42 | $5.71 |
 | goldfish (no memory, refuses everything) | — | 6 | 0.29 | 0.00 | 12/18 | 0.60 | $0.00 |
-| **Claude Code** (`memory.md` + auto-compaction, `recall` field) | claude-opus-5 | 1 | 0.28 | 0.25 | — | 0.37 | $3.82 |
+| **Claude Code** (`memory.md` + auto-compaction, `recall` field) | Opus 5 | 1 | 0.28 | 0.25 | — | 0.37 | $3.82 |
 | random legal plans | — | 6 | 0.23 [0.03, 0.79] | 0.25 | — | 0.18 | $0.00 |
 
 Claude Code memory pass rate by delay (raw, pooled): 1 season 0.43 · 1 year 0.76 · 10 years 1.00 · 25 years 0.00.

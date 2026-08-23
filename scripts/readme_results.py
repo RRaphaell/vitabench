@@ -8,11 +8,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 LABEL = {
     "claude-code": "**Claude Code** (`memory.md` + auto-compaction, `recall` field)",
+    "claude-code/caterina": "Claude Code, second persona *Caterina* (glassmaker's daughter)",
     "mock:sensible": "scripted baseline (works, eats plain, pays known debts)",
     "mock:random": "random legal plans",
     "mock:goldfish": "goldfish (no memory, refuses everything)",
 }
-MODEL = {"mock": "—"}
+MODEL = {"mock": "—", "claude-sonnet-5": "Sonnet 5", "claude-opus-5": "Opus 5"}
 
 
 def fmt_ci(row: dict, key: str) -> str:
