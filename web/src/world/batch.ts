@@ -4,14 +4,19 @@ import {
 } from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { hasPiece, kitTexture, pieceGeometries } from './assets';
-import type { KitName, Placement } from './types';
+import type { KitName, LayerName, Placement } from './types';
 
 interface InstanceJob {
   kit: KitName;
   piece: string;
+  layer: LayerName;
   matrices: Matrix4[];
   colors: Color[];
 }
+
+export type LayerMeshes = Map<string, Mesh[]>;
+
+const BASE: LayerName = 'base';
 
 const scratchQ = new Quaternion();
 const scratchE = new Euler();
@@ -40,48 +45,62 @@ function colored(geometry: BufferGeometry, matrix: Matrix4, color: Color): Buffe
 }
 
 export class KitBatcher {
-  private merged = new Map<KitName, BufferGeometry[]>();
+  private merged = new Map<string, BufferGeometry[]>();
   private instanced: InstanceJob[] = [];
 
   add(p: Placement): void {
     if (!hasPiece(p.kit, p.piece)) return;
     const matrix = matrixOf(p);
     const color = new Color(p.color);
-    const bucket = this.merged.get(p.kit) ?? [];
+    const slot = `${p.kit}|${p.layer ?? BASE}`;
+    const bucket = this.merged.get(slot) ?? [];
     for (const geometry of pieceGeometries(p.kit, p.piece)) bucket.push(colored(geometry, matrix, color));
-    this.merged.set(p.kit, bucket);
+    this.merged.set(slot, bucket);
   }
 
   addAll(list: readonly Placement[]): void {
     for (const p of list) this.add(p);
   }
 
-  addInstanced(kit: KitName, piece: string, placements: readonly Placement[]): void {
+  addInstanced(kit: KitName, piece: string, placements: readonly Placement[], layer: LayerName = BASE): void {
     if (placements.length === 0 || !hasPiece(kit, piece)) return;
     if (placements.length <= 20) {
-      this.addAll(placements.map((p) => ({ ...p, kit, piece })));
+      this.addAll(placements.map((p) => ({ ...p, kit, piece, layer })));
       return;
     }
     this.instanced.push({
       kit,
       piece,
+      layer,
       matrices: placements.map((p) => matrixOf({ ...p, kit, piece })),
       colors: placements.map((p) => new Color(p.color)),
     });
   }
 
-  build(parent: Object3D): void {
-    for (const [kit, list] of this.merged) {
+  build(parent: Object3D): LayerMeshes {
+    const layers: LayerMeshes = new Map();
+    const record = (layer: string, mesh: Mesh) => {
+      const list = layers.get(layer) ?? [];
+      list.push(mesh);
+      layers.set(layer, list);
+    };
+    for (const [slot, list] of this.merged) {
       if (list.length === 0) continue;
+      const [kit, layer] = slot.split('|') as [KitName, LayerName];
       const geometry = mergeGeometries(list, false);
       list.forEach((g) => g.dispose());
       if (!geometry) continue;
       geometry.computeBoundingSphere();
-      const mesh = new Mesh(geometry, new MeshLambertMaterial({ map: kitTexture(kit), vertexColors: true }));
+      const flat = layer === 'snow' || layer === 'foliage';
+      const material = flat
+        ? new MeshLambertMaterial({ vertexColors: true })
+        : new MeshLambertMaterial({ map: kitTexture(kit), vertexColors: true });
+      const mesh = new Mesh(geometry, material);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
-      mesh.name = `kit_${kit}`;
+      mesh.name = `kit_${kit}_${layer}`;
       parent.add(mesh);
+      record(layer, mesh);
     }
     this.merged.clear();
     for (const job of this.instanced) {
@@ -102,9 +121,26 @@ export class KitBatcher {
       mesh.receiveShadow = true;
       mesh.name = `inst_${job.kit}_${job.piece}`;
       parent.add(mesh);
+      record(job.layer, mesh);
     }
     this.instanced = [];
+    return layers;
   }
+}
+
+export function instancedPiece(kit: KitName, piece: string, count: number, flat = false): InstancedMesh | null {
+  if (!hasPiece(kit, piece) || count <= 0) return null;
+  const parts = pieceGeometries(kit, piece);
+  const geometry = parts.length === 1 ? parts[0]!.clone() : mergeGeometries(parts.map((g) => g.clone()), false);
+  if (!geometry) return null;
+  const material = flat ? new MeshLambertMaterial({}) : new MeshLambertMaterial({ map: kitTexture(kit) });
+  const mesh = new InstancedMesh(geometry, material, count);
+  mesh.instanceMatrix.setUsage(DynamicDrawUsage);
+  mesh.frustumCulled = false;
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  mesh.name = `moving_${kit}_${piece}`;
+  return mesh;
 }
 
 export function disposeTree(root: Object3D): void {

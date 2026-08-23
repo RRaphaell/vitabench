@@ -2,7 +2,8 @@ import {
   Color, DirectionalLight, DoubleSide, Fog, HemisphereLight, Mesh, MeshBasicMaterial, PlaneGeometry, Scene, Vector3,
 } from 'three';
 import {
-  CAMERA_RADIUS, DAY_SECONDS, NIGHT_FOG, NIGHT_SKY, PLAGUE_FOG, SEASON_FOG, SEASON_SKY, SEASON_SUN, WAR_FOG,
+  CAMERA_RADIUS, DAY_SECONDS, NIGHT_FOG, NIGHT_SKY, PLAGUE_FOG, SEASON_FOG, SEASON_SKY, SEASON_SUN,
+  SEASON_SUN_POWER, WAR_FOG,
 } from './constants';
 import type { WorldEnv } from './types';
 
@@ -15,6 +16,7 @@ export interface LightingOpts {
 export interface LightingHandle {
   sunDirection: Vector3;
   sun: DirectionalLight;
+  daylight(): number;
   update(dt: number, env: WorldEnv): void;
   setEnvironment(env: WorldEnv): void;
   dispose(): void;
@@ -23,6 +25,12 @@ export interface LightingHandle {
 const dayColor = new Color();
 const fogColor = new Color();
 const sunColor = new Color();
+const PLAGUE = new Color(PLAGUE_FOG);
+const WAR = new Color(WAR_FOG);
+const NIGHT_A = new Color(NIGHT_SKY);
+const NIGHT_B = new Color(NIGHT_FOG);
+const DUSK = new Color(0x7f9bd6);
+const WHITE = new Color(0xffffff);
 
 export function createLighting(scene: Scene, opts: LightingOpts): LightingHandle {
   const span = Math.max(opts.cols, opts.rows);
@@ -62,6 +70,7 @@ export function createLighting(scene: Scene, opts: LightingOpts): LightingHandle
 
   const sunDirection = new Vector3(0.6, 0.9, 0.4).normalize();
   let clock = DAY_SECONDS * 0.3;
+  let light = 1;
   let env: WorldEnv = { season: 0, plague: false, war: false };
 
   const apply = () => {
@@ -69,6 +78,7 @@ export function createLighting(scene: Scene, opts: LightingOpts): LightingHandle
     const angle = phase * Math.PI * 2 - Math.PI / 2;
     const elev = Math.sin(angle);
     const day = Math.max(0, Math.min(1, elev * 2.4 + 0.78));
+    light = day;
     sunDirection.set(0.72 + Math.cos(angle) * 0.12, 0.52 + day * 0.34, -0.28 + Math.sin(angle) * 0.1).normalize();
     sun.position.copy(sunDirection).multiplyScalar(span * 1.8);
     sun.target.position.set(0, 0, 0);
@@ -78,26 +88,28 @@ export function createLighting(scene: Scene, opts: LightingOpts): LightingHandle
     fogColor.set(SEASON_FOG[season]!);
     sunColor.set(SEASON_SUN[season]!);
     if (env.plague) {
-      fogColor.lerp(new Color(PLAGUE_FOG), 0.65);
-      dayColor.lerp(new Color(PLAGUE_FOG), 0.45);
+      fogColor.lerp(PLAGUE, 0.65);
+      dayColor.lerp(PLAGUE, 0.45);
     } else if (env.war) {
-      fogColor.lerp(new Color(WAR_FOG), 0.5);
-      dayColor.lerp(new Color(WAR_FOG), 0.3);
+      fogColor.lerp(WAR, 0.5);
+      dayColor.lerp(WAR, 0.3);
     }
-    dayColor.lerp(new Color(NIGHT_SKY), 1 - day);
-    fogColor.lerp(new Color(NIGHT_FOG), 1 - day);
+    dayColor.lerp(NIGHT_A, 1 - day);
+    fogColor.lerp(NIGHT_B, 1 - day);
     (scene.background as Color).copy(dayColor);
     fog.color.copy(fogColor);
     fog.near = CAMERA_RADIUS + span * (env.plague ? -0.85 : 0.3);
     fog.far = CAMERA_RADIUS + span * (env.plague ? 1.1 : 4);
 
-    sun.color.copy(sunColor).lerp(new Color(0x7f9bd6), 1 - day);
-    sun.intensity = 0.45 + day * 2.1 * (env.plague ? 0.6 : 1);
-    hemi.intensity = 0.4 + day * 0.75;
-    hemi.color.copy(dayColor).lerp(new Color(0xffffff), 0.35);
+    const power = SEASON_SUN_POWER[season]!;
+    sun.color.copy(sunColor).lerp(DUSK, 1 - day);
+    sun.intensity = (0.45 + day * 2.1 * (env.plague ? 0.6 : 1)) * power;
+    hemi.intensity = (0.4 + day * 0.75) * (season === 3 ? 1.35 : 1);
+    hemi.color.copy(dayColor).lerp(WHITE, season === 3 ? 0.6 : 0.35);
 
     const mat = decal.material as MeshBasicMaterial;
-    mat.opacity = env.plague ? 0.18 + 0.14 * (0.5 + 0.5 * Math.sin(clock * 3.1)) : 0;
+    const toll = (1 - ((clock % 3.6) / 3.6)) ** 2.4;
+    mat.opacity = env.plague ? 0.1 + toll * 0.34 : 0;
     decal.visible = env.plague;
   };
 
@@ -106,6 +118,7 @@ export function createLighting(scene: Scene, opts: LightingOpts): LightingHandle
   return {
     sunDirection,
     sun,
+    daylight: () => light,
     update(dt, next) {
       clock += dt;
       env = next;

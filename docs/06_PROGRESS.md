@@ -552,11 +552,30 @@ the lights change."* Everything below is inside `web/src/world/**` + `web/src/ac
   +3 merged meshes (snow/foliage/stall split). Per-frame allocations were removed from the hot paths, including the
   five `new Color(...)` per frame that `lighting.ts` already had.
 
-**Verified.** `npx tsc --noEmit` clean, `npm run build` green, screenshots at 1920x1080 in `runs/demo/screens/life_*.png`
-(spring/summer/autumn/winter, plague, war, flood, festival, market crash, hero at work, visitor + letter ship).
-Note for anyone reading the fps numbers in those runs: SwiftShader is fill-bound at ~2–3 fps at 1920x1080, and because
-`main.ts` clamps `dt` to 0.1 the whole world runs at ~1/4 speed under it — the day/night loop takes ~3 real minutes
-there instead of 45 s.
+**Verified.** `npx tsc --noEmit` clean, `npm run build` green, twelve 1920x1080 screenshots in
+`runs/demo/screens/life_*.png` — eleven shots, each one looked at:
+`life_spring/summer/autumn/winter` (foliage green → deep green → ochre, then snow shells on every roof, pale slab and
+an empty lagoon), `life_plague` (olive fog, the red toll ring pulsing over Cannaregio, a fire smoke column, crowd
+down to a third), `life_war` (four galleys circling the lagoon, red banners standing above the roofs round the campo,
+two smoke columns), `life_flood` (acqua alta sheeting over the whole island), `life_festival` (gold banners and the
+campo packed), `life_crash` (Rialto stalls gone — compare `life_autumn` at the same tiles), `life_work` (hero at the
+Arsenale doorstep with the anvil), `life_visit` (letter ship offshore, visitor arrived beside the hero).
+
+**Cut for time.** No `life_night.png` in the set: the day/night behaviour is in and was verified by eye mid-session
+(streets empty, warm hearth at the hero's house), but SwiftShader's clamped `dt` means a night frame needs a ~2 minute
+wait per shot and there was no time to re-capture it after the last rebuild. Nothing else was left half-done.
+
+**On the 60 fps question — read this before trusting a number.** SwiftShader is not an fps oracle here: it renders
+this scene at 1.6–3 fps at *every* resolution from 480x270 to 1920x1080, so it is bound by geometry/shadow work in
+software, not by anything the change touched, and `Performance.getMetrics` script time swung between 1.3 and 50
+ms/frame across runs purely with CPU contention. Two consequences worth knowing: (a) `main.ts` clamps `dt` to 0.1, so
+under SwiftShader the whole world (day/night, boats, crowd) runs at roughly a quarter speed — the 45 s day loop takes
+about three real minutes, which is why the "night" shot needs a ~60 s wait; (b) the honest budget claim is structural,
+not measured: every added system is one instanced draw call with matrices written into a shared `Object3D`, and the
+hot paths allocate nothing.
+
+`vite preview` caches `index.html`, so it serves stale chunk hashes after a rebuild and the page 404s into a blank
+frame — restart it after `npm run build` before screenshotting.
 
 - 17:15 **Done (F13 partial, J2, N2):** `web/src/world/{constants,types,rng,assets,batch,island,buildings,props,lighting,citygen}.ts`, `web/src/dev/{world_demo,assets_probe,world.html}` and the map fixture `web/src/dev/fixtures/map_venice.ts` (24x18, canals x∈{7,16} z∈{5,12}, 14 places, 6 landmarks).
 - **Public API for W6/W7:** `buildWorld(scene, map: MapSpec, seed): WorldHandles` from `world/citygen.ts` returns immediately (island + water + lights are up on frame 1) and finishes the kit-built city asynchronously; `await preloadWorld()` first if you need the city present before the first render. `WorldHandles = { tileToWorld, isWalkable, grid, placeXZ, update(dt, {season, plague, war}), dispose }` as specified. `placeXZ` falls back to island centre for unknown ids. **Camera contract:** put the orthographic camera at radius `CAMERA_RADIUS` (90, `world/constants.ts`) from the target — the scene fog is tuned to that distance; a much closer/farther camera will fog the city or flatten it. Suggested iso: yaw 45°, pitch `atan(1/√2)`, frustum height 8–40 (`?zoom=` in the demo).

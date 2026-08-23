@@ -1,14 +1,18 @@
 import { Group, Scene, Vector3 } from 'three';
 import type { MapSpec } from '../state/schema';
 import { loadKit } from './assets';
-import { KitBatcher, disposeTree } from './batch';
+import { KitBatcher, disposeTree, type LayerMeshes } from './batch';
+import { buildBoats, type BoatsHandle } from './boats';
 import { buildBuilding, buildLandmark, type BuildStyle, type LandmarkKind } from './buildings';
-import { PALETTE, STONE } from './constants';
+import { PALETTE, SNOW, STONE } from './constants';
+import { buildCrowd, type CrowdHandle } from './crowd';
 import { buildIsland, buildWater, type WaterHandle } from './island';
 import { createLighting, type LightingHandle } from './lighting';
-import { buildProps, type PropsHandle } from './props';
+import { hasEvent, liveFrame, liveStamp, publishDoorstep, publishMap, resetLive } from './live';
+import { buildProps } from './props';
 import { hash2, mulberry32, pick, type Rng } from './rng';
-import type { WorldEnv, WorldGrid, WorldHandles } from './types';
+import { buildSpectacle, type SpectacleHandle } from './spectacle';
+import type { Placement, SceneEnv, WorldEnv, WorldGrid, WorldHandles } from './types';
 
 const DIRS: [number, number, number][] = [[1, 0, 0], [0, -1, 1], [-1, 0, 2], [0, 1, 3]];
 
@@ -32,8 +36,11 @@ export function buildWorld(scene: Scene, map: MapSpec, seed: number): WorldHandl
   const root = new Group();
   root.name = 'world';
   scene.add(root);
+  publishMap(map);
 
-  const toWorld = (x: number, z: number) => new Vector3(x - (cols - 1) / 2, 0, z - (rows - 1) / 2);
+  const ox = (cols - 1) / 2;
+  const oz = (rows - 1) / 2;
+  const toWorld = (x: number, z: number) => new Vector3(x - ox, 0, z - oz);
   const canals = canalTest(map);
   const isCanal = canals.isCanal;
   const inBounds = (x: number, z: number) => x >= 0 && z >= 0 && x < cols && z < rows;
@@ -63,6 +70,32 @@ export function buildWorld(scene: Scene, map: MapSpec, seed: number): WorldHandl
     walkable.push(col);
   }
   const grid: WorldGrid = { cols, rows, walkable };
+  const walkAt = (x: number, z: number) => (inBounds(x, z) ? walkable[x]![z]! : false);
+  const outside = (x: number, z: number) => walkAt(x, z) && !occupied.has(key(x, z)) && !isCanal(x, z);
+  const airiness = (x: number, z: number) => {
+    let n = 0;
+    for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) if (outside(x + dx, z + dz)) n += 1;
+    if (nearCanal(x, z)) n += 2.5;
+    if (plaza.has(key(x, z))) n += 3;
+    return n;
+  };
+  publishDoorstep(([x, z]) => {
+    let best: [number, number] = [x, z];
+    let score = outside(x, z) ? airiness(x, z) : -1;
+    for (let dx = -2; dx <= 2; dx++) {
+      for (let dz = -2; dz <= 2; dz++) {
+        const nx = x + dx;
+        const nz = z + dz;
+        if (!outside(nx, nz)) continue;
+        const here = airiness(nx, nz) - Math.hypot(dx, dz) * 0.9;
+        if (here > score) {
+          score = here;
+          best = [nx, nz];
+        }
+      }
+    }
+    return best;
+  });
 
   const lighting: LightingHandle = createLighting(scene, {
     cols, rows,
@@ -70,46 +103,123 @@ export function buildWorld(scene: Scene, map: MapSpec, seed: number): WorldHandl
   });
   const water: WaterHandle = buildWater(root, lighting.sunDirection);
   const batcher = new KitBatcher();
-  let props: PropsHandle | null = null;
+  let boats: BoatsHandle | null = null;
+  let crowd: CrowdHandle | null = null;
+  let spectacle: SpectacleHandle | null = null;
   let disposed = false;
+
+  const campos = map.landmarks.filter((l) => l.kind === 'fountain' || l.kind === 'basilica').map((l) => l.xz);
+  const markets = map.places.filter((p) => p.kind === 'market').map((p) => p.xz);
+  const dock = map.places.find((p) => p.kind === 'dock')?.xz ?? null;
 
   void preloadWorld().then(() => {
     if (disposed) return;
-    buildIsland(root, batcher, { cols, rows, isCanal, toWorld, rng });
+    const island = buildIsland(root, batcher, { cols, rows, isCanal, toWorld, rng });
     populate(root, batcher, map, seed, { cols, rows, toWorld, isCanal, isStreet, isBridge, spansX: canals.spansX, occupied, key, rng, inBounds, plaza });
-    props = buildProps(root, batcher, {
+    buildProps(batcher, {
       cols, rows, rng, toWorld, isCanal, isStreet,
       isOpen: (x, z) => inBounds(x, z) && !isCanal(x, z) && !occupied.has(key(x, z)),
-      canals: map.water.map((w) => ({ axis: w.axis, at: w.at })),
-      markets: map.places.filter((p) => p.kind === 'market').map((p) => p.xz),
-      campos: map.landmarks.filter((l) => l.kind === 'fountain' || l.kind === 'basilica').map((l) => l.xz),
+      markets,
+      campos,
       yards: yardTiles(cols, rows, isCanal, isStreet, occupied, key, rng),
-      dock: map.places.find((p) => p.kind === 'dock')?.xz ?? null,
+      dock,
     });
-    batcher.build(root);
+    const layers: LayerMeshes = batcher.build(root);
+    boats = buildBoats(root, {
+      cols, rows, ox, oz, rng, toWorld,
+      canals: map.water.map((w) => ({ axis: w.axis, at: w.at })),
+      dock,
+    });
+    crowd = buildCrowd(root, {
+      cols, rows, ox, oz, rng,
+      isWalkable: walkAt,
+      markets,
+      campos,
+      homes: map.places.filter((p) => p.kind === 'home' || p.kind === 'tavern').map((p) => p.xz),
+    });
+    spectacle = buildSpectacle(root, {
+      cols, rows, ox, oz, rng,
+      buildings: tilesWhere(cols, rows, (x, z) => !walkAt(x, z) && !isCanal(x, z)),
+      campos,
+      streets: tilesWhere(cols, rows, isStreet),
+      open: tilesWhere(cols, rows, outside),
+      layers,
+      island,
+    });
   });
 
   const placeIndex = new Map<string, [number, number]>();
   for (const p of map.places) placeIndex.set(p.id, p.xz);
   for (const l of map.landmarks) placeIndex.set(l.id, l.xz);
 
+  const sceneEnv: SceneEnv = {
+    season: 0, plague: false, war: false, t: 0, daylight: 1, night: 0, stamp: -1,
+    seasonTurned: false, flood: false, fire: false, festival: false, politics: false,
+    crash: false, famine: false, visitor: false,
+  };
+
   return {
     tileToWorld: (xz) => toWorld(xz[0], xz[1]),
-    isWalkable: (x, z) => (inBounds(Math.round(x), Math.round(z)) ? walkable[Math.round(x)]![Math.round(z)]! : false),
+    isWalkable: (x, z) => walkAt(Math.round(x), Math.round(z)),
     grid,
     placeXZ: (id) => placeIndex.get(id) ?? [Math.floor(cols / 2), Math.floor(rows / 2)],
     update(dt: number, env: WorldEnv) {
       lighting.update(dt, env);
       water.update(dt);
-      props?.update(dt, env);
+      const frame = liveFrame();
+      const season = frame ? ((frame.t % 4) + 4) % 4 : env.season;
+      sceneEnv.seasonTurned = season !== sceneEnv.season;
+      sceneEnv.season = season;
+      sceneEnv.plague = env.plague || hasEvent('plague');
+      sceneEnv.war = env.war || hasEvent('war');
+      sceneEnv.flood = hasEvent('flood');
+      sceneEnv.fire = hasEvent('fire');
+      sceneEnv.festival = hasEvent('festival');
+      sceneEnv.politics = hasEvent('politics');
+      sceneEnv.crash = hasEvent('market');
+      sceneEnv.famine = hasEvent('famine');
+      let visitor = false;
+      if (frame) {
+        for (const person of frame.people) {
+          if (person.talking && person.id !== 'mother') {
+            visitor = true;
+            break;
+          }
+        }
+      }
+      sceneEnv.visitor = visitor;
+      sceneEnv.t = frame ? frame.t : 0;
+      sceneEnv.stamp = liveStamp();
+      sceneEnv.daylight = lighting.daylight();
+      sceneEnv.night = 1 - sceneEnv.daylight;
+      boats?.update(dt, sceneEnv);
+      crowd?.update(dt, sceneEnv);
+      spectacle?.update(dt, sceneEnv);
     },
     dispose() {
       disposed = true;
-      props?.dispose();
+      boats?.dispose();
+      crowd?.dispose();
+      spectacle?.dispose();
       lighting.dispose();
+      resetLive();
       disposeTree(root);
     },
   };
+}
+
+function tilesWhere(cols: number, rows: number, test: (x: number, z: number) => boolean): [number, number][] {
+  const out: [number, number][] = [];
+  for (let x = 0; x < cols; x++) for (let z = 0; z < rows; z++) if (test(x, z)) out.push([x, z]);
+  return out;
+}
+
+function withSnow(batcher: KitBatcher, placements: Placement[]): void {
+  batcher.addAll(placements);
+  for (const p of placements) {
+    if (p.layer !== 'roof') continue;
+    batcher.add({ ...p, layer: 'snow', color: SNOW, scale: (p.scale ?? 1) * 1.04, y: p.y + 0.03 });
+  }
 }
 
 function districtRect(map: MapSpec, seed: number, toWorld: (x: number, z: number) => Vector3) {
@@ -196,7 +306,7 @@ function populate(root: Group, batcher: KitBatcher, map: MapSpec, seed: number, 
       const lowered = ctx.isCanal(x + 1, z) || ctx.isCanal(x, z + 1);
       const floors = kind === 'church' ? 3 : lowered ? 1 + Math.round(roll * 0.6) : roll < 0.18 ? 3 : roll < 0.75 ? 2 : 1;
       const placements = buildBuilding(h, floors, styleFor(x, z, seed, ctx), { x: p.x, z: p.z, doorSide: doorSide(x, z, ctx) });
-      batcher.addAll(placements);
+      withSnow(batcher, placements);
       if (kind === 'tavern' || kind === 'church') {
         batcher.add({
           kit: 'town', piece: kind === 'tavern' ? 'banner-green' : 'banner-red',

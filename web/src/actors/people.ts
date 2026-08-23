@@ -12,7 +12,8 @@ import {
   Vector2,
   Vector3,
 } from 'three';
-import type { Frame, PersonFrame, RosterEntry } from '../state/schema';
+import type { Frame, PersonFrame, RosterEntry, XZ } from '../state/schema';
+import { heroAnchor, heroTalking, publishFrame, publishTalk, talkTarget } from '../world/live';
 import type { AccentClass, Character } from './characters';
 import { ACCENT, accentClass, normalizeModel, sharedCharacters } from './characters';
 import { PathFollower } from './path';
@@ -22,6 +23,12 @@ import { tileSizeOf } from './types';
 const MAX_ANIMATED = 60;
 const DEATH_HIDE_SECONDS = 4;
 const PLAGUE_KEEP = 3;
+const FAMILY = 'mother';
+const BESIDE: XZ[] = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]];
+
+export function getTalkTarget(): { id: string; hero: Vector3; npc: Vector3 } | null {
+  return talkTarget();
+}
 
 interface Person {
   id: string;
@@ -64,6 +71,9 @@ export function createPeople(scene: Scene, world: WorldHandles, roster: RosterEn
 
   const tile = tileSizeOf(world);
   const bodyHeight = tile * 0.8;
+  const base = world.tileToWorld([0, 0]);
+  const ox = -base.x;
+  const oz = -base.z;
   const people: Person[] = roster.map((entry, index) => ({
     id: entry.id,
     index,
@@ -124,15 +134,50 @@ export function createPeople(scene: Scene, world: WorldHandles, roster: RosterEn
 
   let plague = false;
   const applyFrame = (frame: Frame) => {
+    publishFrame(frame);
     plague = frame.events.some((e) => e.active && e.kind === 'plague');
     for (const entry of frame.people) applyPerson(entry);
   };
 
+  const doorway: XZ = [0, 0];
+  const visitTile = (): XZ | null => {
+    const at = heroAnchor();
+    const hx = Math.round(at.x + ox);
+    const hz = Math.round(at.z + oz);
+    for (const step of BESIDE) {
+      if (!world.isWalkable(hx + step[0], hz + step[1])) continue;
+      doorway[0] = hx + step[0];
+      doorway[1] = hz + step[1];
+      return doorway;
+    }
+    if (!world.isWalkable(hx, hz)) return null;
+    doorway[0] = hx;
+    doorway[1] = hz;
+    return doorway;
+  };
+
+  const visits = (person: Person) => person.alive && person.talking
+    && (person.id !== FAMILY || heroTalking());
+
   const shown = (person: Person) => !plague || person.index % PLAGUE_KEEP === 0;
 
+  const facing = new Vector3();
+  let guest: Person | null = null;
+
   const update = (dt: number) => {
+    const beside = visitTile();
+    guest = null;
     for (const person of people) {
+      const visiting = visits(person);
+      if (visiting) {
+        if (beside) person.follower.setTarget(beside);
+        if (!guest || person.id !== FAMILY) guest = person;
+      }
       if (person.alive) person.follower.update(dt);
+      if (visiting && !person.follower.moving) {
+        facing.copy(heroAnchor()).sub(person.follower.position);
+        if (facing.lengthSq() > 1e-4) person.follower.heading = Math.atan2(facing.x, facing.z);
+      }
       else person.deadFor += dt;
       const gone = person.deadFor > DEATH_HIDE_SECONDS;
       const character = person.character;
@@ -160,6 +205,11 @@ export function createPeople(scene: Scene, world: WorldHandles, roster: RosterEn
       pegs.setMatrixAt(person.index, dummy.matrix);
     }
     pegs.instanceMatrix.needsUpdate = true;
+    publishTalk(
+      guest && shown(guest) ? guest.id : null,
+      guest ? guest.follower.position : null,
+      bodyHeight * 1.15,
+    );
   };
 
   const projected = new Vector3();
@@ -191,6 +241,8 @@ export function createPeople(scene: Scene, world: WorldHandles, roster: RosterEn
     },
     isTalking: (id) => byId.get(id)?.talking === true,
     talkingAnchor: () => {
+      const target = talkTarget();
+      if (target) return { id: target.id, at: target.npc };
       for (const person of people) {
         if (!person.talking || !person.alive || !shown(person)) continue;
         const at = person.follower.position.clone();

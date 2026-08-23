@@ -15,6 +15,7 @@ import { tileSizeOf } from './types';
 
 const HIGHLIGHT_COLOR = 0xd9a441;
 const PLAGUE_COLOR = 0xc8413b;
+const TOLL = 3.6;
 export const SEPIA_CLASS = 'vb-sepia';
 
 type PointSource = () => Vector3 | null;
@@ -118,9 +119,10 @@ export function createEffects(scene: Scene, world: WorldHandles): Effects {
   const update = (dt: number) => {
     if (plague) {
       plagueClock += dt;
-      const wave = 0.5 + 0.5 * Math.sin(plagueClock * 1.8);
-      zoneMaterial.opacity = 0.26 + wave * 0.34;
-      zone.scale.setScalar(plague.radius * (0.72 + wave * 0.05));
+      const beat = (plagueClock % TOLL) / TOLL;
+      const level = Math.min(1, beat / 0.05) * (1 - beat) ** 2.2;
+      zoneMaterial.opacity = 0.12 + level * 0.52;
+      zone.scale.setScalar(plague.radius * (0.7 + beat * 0.34));
     }
     if (remaining <= 0) return;
     remaining -= dt;

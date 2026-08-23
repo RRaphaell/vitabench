@@ -54,6 +54,7 @@ export function buildBuilding(seed: number, floors: number, style: BuildStyle, s
     z: spot.z,
     rotY: roofRot,
     color: pick(rng, ROOF_TINTS),
+    layer: 'roof',
   });
   if (rng() < 0.4) {
     const h = roofPiece.startsWith('roof-high') ? 1.0 : 0.5;

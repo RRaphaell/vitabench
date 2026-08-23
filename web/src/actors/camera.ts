@@ -12,6 +12,7 @@ const OVERVIEW_PITCH = MathUtils.degToRad(35);
 const MIN_PITCH = MathUtils.degToRad(25);
 const MAX_PITCH = MathUtils.degToRad(70);
 const DISTANCE = 160;
+const DRIFT = MathUtils.degToRad(1);
 
 export interface CameraRig {
   camera: OrthographicCamera;
@@ -38,6 +39,7 @@ export function createCamera(renderer: WebGLRenderer, world: WorldHandles): Came
 
   let yaw = Math.PI / 4;
   let pitch = FOLLOW_PITCH;
+  let manualYaw = false;
   let manualPitch = false;
   let half = FOLLOW_HALF;
   let halfTarget = FOLLOW_HALF;
@@ -87,6 +89,7 @@ export function createCamera(renderer: WebGLRenderer, world: WorldHandles): Came
 
   const onPointerMove = (event: PointerEvent) => {
     if (!dragging) return;
+    if (event.clientX !== lastX) manualYaw = true;
     yaw -= (event.clientX - lastX) * 0.006;
     if (event.clientY !== lastY) manualPitch = true;
     pitch = MathUtils.clamp(pitch + (event.clientY - lastY) * 0.004, MIN_PITCH, MAX_PITCH);
@@ -125,6 +128,7 @@ export function createCamera(renderer: WebGLRenderer, world: WorldHandles): Came
     }
     if (overviewHold > 0) overviewHold -= dt;
     const showing: CameraMode = overviewHold > 0 ? 'overview' : mode;
+    if (showing === 'follow' && !manualYaw && !dragging) yaw += DRIFT * dt;
     if (focusPoint) desired.copy(focusPoint);
     else desired.copy(showing === 'follow' ? heroTarget : centre);
     const close = !!focusPoint || showing === 'follow';
@@ -148,12 +152,14 @@ export function createCamera(renderer: WebGLRenderer, world: WorldHandles): Came
       mode = next;
       manualZoom = false;
       manualPitch = false;
+      manualYaw = false;
       overviewHold = 0;
     },
     toggle: () => {
       mode = mode === 'follow' ? 'overview' : 'follow';
       manualZoom = false;
       manualPitch = false;
+      manualYaw = false;
       overviewHold = 0;
     },
     follow: (position) => {

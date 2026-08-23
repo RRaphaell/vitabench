@@ -5,8 +5,8 @@ import {
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { Water } from 'three/addons/objects/Water.js';
 import {
-  CANAL_BED, CANAL_BED_Y, CANAL_TINT, EARTH, EARTH_DARK, ISLAND_DEPTH, LAGOON, PAVING_H, STONE, STONE_DARK,
-  WATER_TINT, WATER_Y,
+  CANAL_BED, CANAL_BED_Y, CANAL_TINT, CANAL_Y, EARTH, EARTH_DARK, ISLAND_DEPTH, LAGOON, PAVING_H, STONE,
+  STONE_DARK, WATER_TINT, WATER_Y,
 } from './constants';
 import { manager } from './assets';
 import type { KitBatcher } from './batch';
@@ -54,7 +54,7 @@ export function buildIsland(parent: Object3D, batcher: KitBatcher, opts: IslandO
         parts.push(box(1, ISLAND_DEPTH, 1, p.x, CANAL_BED_Y - ISLAND_DEPTH / 2, p.z, bed));
         const quad = new PlaneGeometry(1.001, 1.001).toNonIndexed();
         quad.rotateX(-Math.PI / 2);
-        quad.translate(p.x, WATER_Y + 0.06, p.z);
+        quad.translate(p.x, CANAL_Y, p.z);
         canalQuads.push(quad);
         continue;
       }

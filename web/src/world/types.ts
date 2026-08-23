@@ -8,6 +8,21 @@ export interface WorldEnv {
   war: boolean;
 }
 
+export interface SceneEnv extends WorldEnv {
+  t: number;
+  daylight: number;
+  night: number;
+  stamp: number;
+  seasonTurned: boolean;
+  flood: boolean;
+  fire: boolean;
+  festival: boolean;
+  politics: boolean;
+  crash: boolean;
+  famine: boolean;
+  visitor: boolean;
+}
+
 export interface Placement {
   kit: KitName;
   piece: string;
@@ -17,7 +32,10 @@ export interface Placement {
   rotY?: number;
   scale?: number;
   color: number;
+  layer?: LayerName;
 }
+
+export type LayerName = 'base' | 'roof' | 'snow' | 'foliage' | 'stall' | 'banner';
 
 export interface WorldGrid {
   cols: number;
