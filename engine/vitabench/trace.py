@@ -220,6 +220,9 @@ def frames_from_trace(
             death = record.payload
         elif record.kind == "score":
             scores = record.payload
+    from vitabench.scoring import score_run
+
+    scores = {**scores, **score_run(records)}
     frames.append(
         EndFrame(
             t=int(death.get("t", last_t)),
