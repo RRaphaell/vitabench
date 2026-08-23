@@ -30,8 +30,19 @@ uv run vitabench serve            # then: Claude Code lives through MCP (see doc
 uv run vitabench score runs/      # leaderboard.json with CIs
 ```
 
-## Results (tonight)
-_Filled at 19:30 from `runs/leaderboard.json`._
+## Results (tonight, Venice 1340, persona Marco)
+Same world, same seeds; the harness is the variable. `H = 0.55·memory + 0.25·false-claims-rejected + 0.20·life`; 95% bootstrap CIs over seeds; cost beside the score, never inside it.
+
+| harness | model | n | H [95% CI] | memory | false claims rejected | life | $/life |
+|---|---|---|---|---|---|---|---|
+| Claude Code (`memory.md`, auto-compaction) | claude-sonnet-5 | 4 | **0.60** [0.47, 0.77] | 0.52 | 3/3 | 0.32 | $3.26 |
+| scripted baseline (works, eats plain, pays known debts) | — | 5 | 0.60 [0.56, 0.61] | 0.44 | 14/15 | 0.60 | $0 |
+| random legal plans | — | 5 | 0.40 [0.29, 0.62] | 0.20 | — | 0.21 | $0 |
+| goldfish (no memory, refuses everything) | — | 5 | 0.29 | 0.00 | 10/15 | 0.60 | $0 |
+
+Memory pass rate by delay (Claude Code): 1 season 0.00 · 1 year 0.75 · 10 years 1.00 · 25 years 0.00. Small n — stated, not hidden.
+
+What the traces say: three of four Sonnet lives ended at 31 in the aftermath of the 1348 plague (two of illness, one of starvation after choosing to rest through the price shock); the fourth lived to 63 and was bankrupted by the War of Chioggia. The agent's own `memory.md` shows it *generalizing* the negatives — "the Vialli family runs recurring cons… default posture: assume a con, refuse" — which is why it rejected every false claim. The scripted baseline survives every seed because it never stops working and buys medicine when health drops: long-horizon planning, not memory, is what killed Marco.
 
 ## Repo
 `engine/` Python 3.12 package (`uv sync && uv run pytest`) · `web/` Vite + Three.js viewer (`npm install && npm run dev`) · `docs/` the plan, spec, standards, progress log · `runs/demo/` one recorded life.
