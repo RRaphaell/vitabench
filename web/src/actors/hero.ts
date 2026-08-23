@@ -7,6 +7,7 @@ import type { WorldHandles } from './types';
 import { tileSizeOf } from './types';
 
 const SLEEP_ICON = '🛏';
+export const HERO_LAYER = 1;
 const GOLD = 0xd9a441;
 
 export interface Hero {
@@ -29,23 +30,26 @@ function startTile(world: WorldHandles, persona: Persona): XZ {
 export function createHero(scene: Scene, world: WorldHandles, persona: Persona): Hero {
   const group = new Group();
   group.name = 'hero';
+  group.layers.enable(HERO_LAYER);
   scene.add(group);
 
   const tile = tileSizeOf(world);
   const bodyHeight = tile * 0.92;
   const follower = new PathFollower(world, startTile(world, persona), 1.05);
 
-  const ringGeometry = new RingGeometry(tile * 0.34, tile * 0.48, 40);
+  const ringGeometry = new RingGeometry(tile * 0.38, tile * 0.56, 40);
   const ringMaterial = new MeshBasicMaterial({
     color: GOLD,
     transparent: true,
     opacity: 0.7,
     blending: AdditiveBlending,
     depthWrite: false,
+    depthTest: false,
   });
   const ring = new Mesh(ringGeometry, ringMaterial);
   ring.rotation.x = -Math.PI / 2;
-  ring.renderOrder = 2;
+  ring.renderOrder = 5;
+  ring.layers.enable(HERO_LAYER);
   group.add(ring);
 
   const body = new Group();
@@ -59,8 +63,9 @@ export function createHero(scene: Scene, world: WorldHandles, persona: Persona):
   void sharedCharacters()
     .then((library) => {
       character = library.create(persona.sex === 'female' ? 'female-e' : 'male-e', 'hero', bodyHeight);
-      character.root.scale.multiplyScalar(1.08);
+      character.root.scale.multiplyScalar(1.3);
       body.add(character.root);
+      group.traverse((node) => node.layers.enable(HERO_LAYER));
     })
     .catch((error) => console.warn('[actors] hero model unavailable', error));
 

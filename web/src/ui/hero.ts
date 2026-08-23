@@ -11,6 +11,7 @@ const COLORS = ['#d9a441', '#c8734b', '#7f9ec8', '#8f7fc8'];
 export interface HeroPanel {
   update(s: Store): void;
   setBubble(p: { x: number; y: number } | null): void;
+  setTalkBubble(p: { x: number; y: number } | null): void;
 }
 
 export function mountHero(root: HTMLElement): HeroPanel {
@@ -45,7 +46,8 @@ export function mountHero(root: HTMLElement): HeroPanel {
   const bubbleIcon = el('span', '', '');
   const bubbleText = el('span', '', '');
   bubble.append(bubbleIcon, ' ', bubbleText);
-  root.append(panel, bubble);
+  const talk = el('div', 'bubble talk hidden', '\u{1F4AC}');
+  root.append(panel, bubble, talk);
 
   return {
     update(s: Store) {
@@ -76,6 +78,12 @@ export function mountHero(root: HTMLElement): HeroPanel {
       if (!p) return;
       bubble.style.left = `${p.x}px`;
       bubble.style.top = `${p.y}px`;
+    },
+    setTalkBubble(p) {
+      show(talk, !!p);
+      if (!p) return;
+      talk.style.left = `${p.x}px`;
+      talk.style.top = `${p.y}px`;
     },
   };
 }

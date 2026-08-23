@@ -14,10 +14,11 @@ from vitabench.runner.batch import LEADERBOARD_NAME
 from vitabench.runner.batch import batch as run_batch
 from vitabench.runner.life import TURN_TIMEOUT, run_life
 from vitabench.scenario import ScenarioError, load_scenario, validate_report
-from vitabench.scoring import aggregate, find_runs, memory_table
+from vitabench.scoring import aggregate, find_runs, markdown_tables, memory_table
 from vitabench.trace import read_trace, write_frames_json
 
 DEFAULT_SCENARIO = "scenarios/venice_1340"
+RESULTS_NAME = "results.md"
 HELP = "VitaBench — live one life in a real city, measure what the harness remembers."
 app = typer.Typer(no_args_is_help=True, add_completion=False, help=HELP)
 scenario_app = typer.Typer(no_args_is_help=True, help="Scenario tools.")
@@ -133,7 +134,9 @@ def score(
     target = Path(out) if out else Path(runs) / LEADERBOARD_NAME
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(leaderboard, indent=2), encoding="utf-8")
-    typer.echo(f"{len(run_dirs)} runs → {target}")
+    results = target.parent / RESULTS_NAME
+    results.write_text(markdown_tables(leaderboard), encoding="utf-8")
+    typer.echo(f"{len(run_dirs)} runs → {target} · {results}")
 
 
 @app.command()

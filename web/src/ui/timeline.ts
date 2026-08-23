@@ -25,13 +25,18 @@ export function mountTimeline(root: HTMLElement, deps: TimelineDeps): { update(s
     return span[0] + u * (span[1] - span[0]);
   };
   wrap.addEventListener('click', (ev) => deps.onSeek(tAt(ev.clientX)));
+  let pinned: string | null = null;
   wrap.addEventListener('pointermove', (ev) => {
+    if (pinned) return;
     const r = wrap.getBoundingClientRect();
     show(hover, true);
     hover.style.left = `${ev.clientX - r.left}px`;
     hover.textContent = String(startYear + Math.floor(tAt(ev.clientX) / 4));
   });
-  wrap.addEventListener('pointerleave', () => show(hover, false));
+  wrap.addEventListener('pointerleave', () => {
+    pinned = null;
+    show(hover, false);
+  });
 
   let pinKey = '';
   return {
@@ -51,7 +56,16 @@ export function mountTimeline(root: HTMLElement, deps: TimelineDeps): { update(s
           if (m.ok === true) pin.classList.add('ok');
           else if (m.ok === false) pin.classList.add('fail');
           pin.style.left = pct(m.t);
-          pin.title = `${startYear + Math.floor(m.t / 4)} · ${m.who}`;
+          const label = `${startYear + Math.floor(m.t / 4)} · ${m.who}`;
+          pin.addEventListener('pointerenter', () => {
+            pinned = label;
+            hover.textContent = label;
+            hover.style.left = pct(m.t);
+            show(hover, true);
+          });
+          pin.addEventListener('pointerleave', () => {
+            pinned = null;
+          });
           wrap.append(pin);
         }
         if (s.end) {

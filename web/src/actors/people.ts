@@ -21,6 +21,7 @@ import { tileSizeOf } from './types';
 
 const MAX_ANIMATED = 60;
 const DEATH_HIDE_SECONDS = 4;
+const PLAGUE_KEEP = 3;
 
 interface Person {
   id: string;
@@ -29,6 +30,7 @@ interface Person {
   model: ReturnType<typeof normalizeModel>;
   follower: PathFollower;
   character: Character | null;
+  scale0: number;
   alive: boolean;
   talking: boolean;
   deadFor: number;
@@ -40,6 +42,7 @@ export interface People {
   pick(ndc: Vector2, camera: Camera): string | null;
   positionOf(id: string): Vector3 | null;
   isTalking(id: string): boolean;
+  talkingAnchor(): { id: string; at: Vector3 } | null;
   dispose(): void;
 }
 
@@ -68,6 +71,7 @@ export function createPeople(scene: Scene, world: WorldHandles, roster: RosterEn
     model: normalizeModel(entry.model, index),
     follower: new PathFollower(world, homeTile(world, entry, index), 0.75 + ((index % 5) * 0.06)),
     character: null,
+    scale0: 1,
     alive: true,
     talking: false,
     deadFor: 0,
@@ -92,6 +96,7 @@ export function createPeople(scene: Scene, world: WorldHandles, roster: RosterEn
     .then((lib) => {
       for (const person of people.slice(0, MAX_ANIMATED)) {
         const character = lib.create(person.model, person.accent, bodyHeight);
+        person.scale0 = character.root.scale.x;
         character.root.position.copy(person.follower.position);
         group.add(character.root);
         person.character = character;
@@ -117,25 +122,33 @@ export function createPeople(scene: Scene, world: WorldHandles, roster: RosterEn
     if (person.alive) person.follower.setTarget(frame.xz);
   };
 
+  let plague = false;
   const applyFrame = (frame: Frame) => {
+    plague = frame.events.some((e) => e.active && e.kind === 'plague');
     for (const entry of frame.people) applyPerson(entry);
   };
+
+  const shown = (person: Person) => !plague || person.index % PLAGUE_KEEP === 0;
 
   const update = (dt: number) => {
     for (const person of people) {
       if (person.alive) person.follower.update(dt);
       else person.deadFor += dt;
+      const gone = person.deadFor > DEATH_HIDE_SECONDS;
       const character = person.character;
       if (character) {
+        const sink = person.alive ? 0 : Math.min(1, person.deadFor / DEATH_HIDE_SECONDS);
         character.root.position.copy(person.follower.position);
+        character.root.position.y -= sink * bodyHeight * 0.7;
+        character.root.scale.setScalar(person.scale0 * (1 - sink * 0.45));
         character.root.rotation.y = person.follower.heading;
+        character.root.visible = !gone && shown(person);
         if (person.alive) character.playClip(person.follower.moving ? 'walk' : 'idle');
-        else if (person.deadFor > DEATH_HIDE_SECONDS) character.root.visible = false;
         character.mixer.update(dt);
         pegs.setMatrixAt(person.index, hidden);
         continue;
       }
-      if (!person.alive && person.deadFor > DEATH_HIDE_SECONDS) {
+      if (gone || !shown(person)) {
         pegs.setMatrixAt(person.index, hidden);
         continue;
       }
@@ -177,6 +190,15 @@ export function createPeople(scene: Scene, world: WorldHandles, roster: RosterEn
       return person ? person.follower.position.clone() : null;
     },
     isTalking: (id) => byId.get(id)?.talking === true,
+    talkingAnchor: () => {
+      for (const person of people) {
+        if (!person.talking || !person.alive || !shown(person)) continue;
+        const at = person.follower.position.clone();
+        at.y += bodyHeight * 1.1;
+        return { id: person.id, at };
+      }
+      return null;
+    },
     dispose: () => {
       for (const person of people) person.character?.dispose();
       pegGeometry.dispose();

@@ -1,6 +1,13 @@
 import { Store } from '../state/store';
 import { clear, el, show } from './dom';
 
+function metYear(s: Store, id: string): number | null {
+  for (const frame of s.frames) {
+    if (frame.relations.some((r) => r.id === id && r.world)) return s.startYear + Math.floor(frame.t / 4);
+  }
+  return null;
+}
+
 export interface Inspector {
   open(id: string, s: Store, at: { x: number; y: number }): void;
   close(): void;
@@ -21,11 +28,12 @@ export function mountInspector(root: HTMLElement): Inspector {
       clear(panel);
       panel.append(el('div', 'who', person?.name ?? rel?.name ?? id));
       panel.append(el('div', 'role', person?.role ?? rel?.role ?? ''));
-      const world = el('div', 'kv');
-      world.append(el('span', '', 'world knows'), el('span', rel?.world ? 'yes' : 'no', rel?.world ? 'yes' : 'no'));
-      const agent = el('div', 'kv');
-      agent.append(el('span', '', 'harness remembers'), el('span', rel?.agent ? 'yes' : 'no', rel?.agent ? 'yes' : 'no'));
-      panel.append(world, agent);
+      const year = metYear(s, id);
+      const line = el('div', 'kv');
+      const met = rel?.world ? `world: met in ${year ?? '—'}` : 'world: stranger';
+      line.append(el('span', rel?.world ? 'yes' : 'no', met));
+      line.append(el('span', rel?.agent ? 'yes' : 'no', rel?.agent ? 'agent: remembers' : 'agent: no note'));
+      panel.append(line);
       panel.style.left = `${Math.min(at.x + 12, window.innerWidth - 280)}px`;
       panel.style.top = `${Math.min(at.y + 12, window.innerHeight - 160)}px`;
       show(panel, true);

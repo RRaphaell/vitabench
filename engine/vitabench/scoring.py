@@ -7,7 +7,7 @@ from typing import Any
 import numpy as np
 
 from vitabench.schema import TraceRecord
-from vitabench.trace import read_meta, read_trace
+from vitabench.trace import llm_cost, read_meta, read_trace
 
 CHANCE_DEFAULT = 0.33
 DELAY_BUCKETS = (1, 4, 40, 100)
@@ -30,7 +30,8 @@ def _corrected(rate: float, chance: float) -> float:
 
 
 def _results(records: Sequence[TraceRecord]) -> list[dict[str, Any]]:
-    return [r.payload for r in records if r.kind == "probe_result"]
+    results = [r.payload for r in records if r.kind == "probe_result"]
+    return [p for p in results if p.get("passed", p.get("ok")) is not None]
 
 
 def _passed(probe: dict[str, Any]) -> bool:
@@ -43,14 +44,6 @@ def _first(records: Sequence[TraceRecord], kind: str) -> dict[str, Any]:
         if record.kind == kind:
             return record.payload
     return {}
-
-
-def _cost(records: Sequence[TraceRecord]) -> float:
-    total = 0.0
-    for record in records:
-        if record.kind == "llm":
-            total += float(record.cost_usd or record.payload.get("cost_usd") or 0.0)
-    return round(total, 6)
 
 
 def _life_score(records: Sequence[TraceRecord], death: dict[str, Any]) -> tuple[float, dict[str, Any]]:
@@ -93,6 +86,7 @@ def score_run(records: Iterable[TraceRecord], chance: float = CHANCE_DEFAULT) ->
     n = round(negative_ok / len(negatives), 4) if negatives else 1.0
 
     death = _first(records, "death")
+    cost = llm_cost(records)
     life, life_detail = _life_score(records, death)
     life = round(life, 4)
     h = round(WEIGHTS["M"] * m + WEIGHTS["N"] * n + WEIGHTS["L"] * life, 4)
@@ -104,7 +98,8 @@ def score_run(records: Iterable[TraceRecord], chance: float = CHANCE_DEFAULT) ->
         "N": n,
         "L": life,
         "chance": chance,
-        "cost_usd": _cost(records),
+        "cost_usd": cost,
+        "cost": cost,
         "memory": {"x": memory_hits, "y": len(positives)},
         "negatives": {"x": negative_ok, "y": len(negatives)},
         "quiz": {"x": quiz_ok, "y": len(quizzes)},
@@ -175,6 +170,34 @@ def memory_table(rows: Sequence[dict[str, Any]]) -> list[str]:
     return lines
 
 
+def markdown_tables(rows: Sequence[dict[str, Any]]) -> str:
+    lead = [
+        "| harness | model | n | H [95% CI] | M | N | L | $/life |",
+        "|---|---|--:|---|--:|--:|--:|--:|",
+    ]
+    for row in rows:
+        lo, hi = row["ci"]["H"]
+        lead.append(
+            f"| {row['harness']} | {row['model']} | {row['n']} | {row['H']:.3f} [{lo:.3f}, {hi:.3f}] |"
+            f" {row['M']:.3f} | {row['N']:.3f} | {row['L']:.3f} | ${row['cost_usd']:.4f} |"
+        )
+    heads = " | ".join(BUCKET_LABELS[b] for b in DELAY_BUCKETS)
+    delay = [f"| harness | model | {heads} | M | negatives |", "|---|---|" + "--:|" * 6]
+    for row in rows:
+        raw = row.get("M_raw_by_delay") or {}
+        cells = " | ".join(f"{raw[str(b)]:.2f}" if str(b) in raw else "—" for b in DELAY_BUCKETS)
+        neg = row.get("negatives") or {"x": 0, "y": 0}
+        delay.append(
+            f"| {row['harness']} | {row['model']} | {cells} | {row['M']:.3f} | {neg['x']}/{neg['y']} |"
+        )
+    chance = rows[0]["chance"] if rows else CHANCE_DEFAULT
+    source = rows[0].get("chance_source", "default") if rows else "default"
+    return "\n".join(
+        ["## Leaderboard", "", *lead, "",
+         f"## Memory pass rate by delay (raw; chance {chance} from {source})", "", *delay, ""]
+    )
+
+
 def score_dir(run_dir: str | Path) -> dict[str, Any]:
     meta = read_meta(run_dir)
     scored = score_run(read_trace(run_dir))
@@ -224,6 +247,7 @@ def aggregate(run_dirs: Iterable[str | Path], chance: float | None = None) -> li
             "N": round(float(np.mean([e["N"] for e in entries])), 4),
             "L": round(float(np.mean([e["L"] for e in entries])), 4),
             "cost_usd": round(float(np.mean([e["cost_usd"] for e in entries])), 6),
+            "cost": round(float(np.mean([e["cost_usd"] for e in entries])), 6),
             "ci": {
                 key: _bootstrap_ci([e[key] for e in entries])
                 for key in ("H", "M", "N", "L")

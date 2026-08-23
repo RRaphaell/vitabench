@@ -10,7 +10,7 @@ import { mountMoments } from './moments';
 import { mountTimeline } from './timeline';
 
 export interface Ui {
-  frame(bubble: { x: number; y: number } | null): void;
+  frame(bubble: { x: number; y: number } | null, talk: { x: number; y: number } | null): void;
   openInspector(id: string, at: { x: number; y: number }): void;
   closeInspector(): void;
 }
@@ -27,7 +27,7 @@ export function mountUi(root: HTMLElement, store: Store, replayer: Replayer, onC
   const timeline = mountTimeline(root, { onSeek: (t) => replayer.seek(t) });
   const banner = mountBanner(root);
   const inspector = mountInspector(root);
-  const leaderboard = mountLeaderboard(root);
+  const leaderboard = mountLeaderboard(root, store);
   const moments = mountMoments(root, {
     onContinue: () => replayer.continueMoment(),
     onLeaderboard: () => leaderboard.toggle(),
@@ -47,7 +47,11 @@ export function mountUi(root: HTMLElement, store: Store, replayer: Replayer, onC
   });
 
   return {
-    frame: (bubble) => hero.setBubble(store.endOpen || store.activeMoment ? null : bubble),
+    frame: (bubble, talk) => {
+      const busy = store.endOpen || !!store.activeMoment;
+      hero.setBubble(busy ? null : bubble);
+      hero.setTalkBubble(busy ? null : talk);
+    },
     openInspector: (id, at) => inspector.open(id, store, at),
     closeInspector: () => inspector.close(),
   };

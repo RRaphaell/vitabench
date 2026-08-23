@@ -16,7 +16,7 @@ from vitabench.npcs import Roster
 from vitabench.scenario import load_scenario
 from vitabench.schema import Observation, Persona, Plan, Probe, ScenarioSpec
 from vitabench.scoring import score_run
-from vitabench.server.harvest import HomeMemory, frame_memory, season_memory, season_probes
+from vitabench.server.harvest import HomeMemory, fill_retrieved, frame_memory, season_memory, season_probes
 from vitabench.trace import (
     TraceWriter,
     frames_from_trace,
@@ -83,6 +83,7 @@ class LiveLife:
         self.home = home_for(run_id) if harness.startswith("claude") else None
         self._home_memory = HomeMemory(self.home) if self.home is not None else None
         self._memory: dict[str, Any] = {}
+        self._known: list[str] = []
 
         self.spec = load_scenario(_scenario_path(scenario))
         self.persona = self._pick_persona(persona)
@@ -131,8 +132,11 @@ class LiveLife:
             queue.put_nowait(frame)
 
     def _write_probes(self) -> None:
+        recall = self._memory.get("retrieved") or []
         for kind, payload in season_probes(self.world, self._probe_state):
             t = int(payload.get("t") or self.world.t)
+            if kind != "probe_plant":
+                payload = fill_retrieved(payload, recall, self._known, self.home)
             self.trace.write(kind, t, payload)
             self._emit(_dump(frames_mod.moment(payload, t, kind)))
 
@@ -169,7 +173,7 @@ class LiveLife:
         self.trace.write("death", summary.t, summary.model_dump(mode="json"))
         scores = score_run(read_trace(self.run_dir))
         self.trace.write("score", summary.t, scores)
-        self._emit(_dump(frames_mod.end(self.world, scores, self.trace.cost_usd)))
+        self._emit(_dump(frames_mod.end(self.world, scores, scores.get("cost") or self.trace.cost_usd)))
         self.status = DEAD
         self.trace.close()
         if self._pull:
@@ -202,6 +206,7 @@ class LiveLife:
 
     def _write_memory(self, plan: Plan) -> None:
         self._memory = season_memory(self._home_memory, plan)
+        self._known.extend(self._memory["wrote"])
         if self._memory["wrote"] or self._memory["retrieved"]:
             self.trace.write("memory", self.world.t, self._memory)
 
@@ -286,7 +291,7 @@ class Registry:
 
 def frames_for(run_dir: Path) -> list[dict[str, Any]]:
     records = read_trace(run_dir)
-    frames = frames_from_trace(records, hello_from_trace(records))
+    frames = frames_from_trace(records, hello_from_trace(records), read_meta(run_dir))
     return [f.model_dump(by_alias=True, mode="json") for f in frames]
 
 

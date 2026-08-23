@@ -14,13 +14,20 @@ import type { WorldHandles } from './types';
 import { tileSizeOf } from './types';
 
 const HIGHLIGHT_COLOR = 0xd9a441;
+const PLAGUE_COLOR = 0xc8413b;
 export const SEPIA_CLASS = 'vb-sepia';
 
 type PointSource = () => Vector3 | null;
 
+export interface PlagueZone {
+  centre: Vector3;
+  radius: number;
+}
+
 export interface Effects {
   highlight(person: PointSource, hero: PointSource, seconds?: number): void;
   clearHighlight(): void;
+  setPlague(zone: PlagueZone | null): void;
   setSepia(on: boolean): void;
   update(dt: number): void;
   dispose(): void;
@@ -58,6 +65,23 @@ export function createEffects(scene: Scene, world: WorldHandles): Effects {
   line.visible = false;
   scene.add(line);
 
+  const zoneGeometry = new RingGeometry(0.78, 1, 64);
+  const zoneMaterial = new MeshBasicMaterial({
+    color: PLAGUE_COLOR,
+    transparent: true,
+    opacity: 0,
+    blending: AdditiveBlending,
+    depthWrite: false,
+    depthTest: false,
+  });
+  const zone = new Mesh(zoneGeometry, zoneMaterial);
+  zone.rotation.x = -Math.PI / 2;
+  zone.renderOrder = 4;
+  zone.visible = false;
+  scene.add(zone);
+
+  let plague: PlagueZone | null = null;
+  let plagueClock = 0;
   let remaining = 0;
   let elapsed = 0;
   let person: PointSource = () => null;
@@ -80,7 +104,24 @@ export function createEffects(scene: Scene, world: WorldHandles): Effects {
     lineMaterial.opacity = 0;
   };
 
+  const setPlague = (next: PlagueZone | null) => {
+    plague = next;
+    zone.visible = !!next;
+    if (!next) {
+      zoneMaterial.opacity = 0;
+      return;
+    }
+    zone.position.set(next.centre.x, next.centre.y + tile * 0.2, next.centre.z);
+    zone.scale.setScalar(next.radius);
+  };
+
   const update = (dt: number) => {
+    if (plague) {
+      plagueClock += dt;
+      const wave = 0.5 + 0.5 * Math.sin(plagueClock * 1.8);
+      zoneMaterial.opacity = 0.26 + wave * 0.34;
+      zone.scale.setScalar(plague.radius * (0.72 + wave * 0.05));
+    }
     if (remaining <= 0) return;
     remaining -= dt;
     elapsed += dt;
@@ -123,12 +164,16 @@ export function createEffects(scene: Scene, world: WorldHandles): Effects {
   return {
     highlight,
     clearHighlight,
+    setPlague,
     setSepia,
     update,
     dispose: () => {
       document.body.classList.remove(SEPIA_CLASS);
       ringGeometry.dispose();
       ringMaterial.dispose();
+      zoneGeometry.dispose();
+      zoneMaterial.dispose();
+      zone.removeFromParent();
       lineGeometry.dispose();
       lineMaterial.dispose();
       ring.removeFromParent();

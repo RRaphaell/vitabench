@@ -14,7 +14,7 @@ from starlette.testclient import TestClient
 from vitabench.adapters.mock import MockAgent
 from vitabench.schema import Plan
 from vitabench.server.app import create_app
-from vitabench.server.harvest import HomeMemory, season_memory
+from vitabench.server.harvest import HomeMemory, fill_retrieved, season_memory
 from vitabench.server.live import REGISTRY
 
 BASE = "http://engine.test"
@@ -160,6 +160,19 @@ def test_claude_home_memory(runs_dir: Path, tmp_path: Path, monkeypatch: pytest.
         assert json.loads((runs_dir / run_id / "meta.json").read_text())["home"] == str(home)
 
     drive(body)
+
+
+def test_fill_retrieved_prefers_recall_then_greps_memory(tmp_path: Path) -> None:
+    home = tmp_path / "r_live"
+    home.mkdir()
+    (home / "memory.md").write_text("- 1341: Tomas Ferrer lent me 30 ducats\n", encoding="utf-8")
+    payload = {"who": "Ines Ferrer", "npc": "tomas_ferrer"}
+
+    grepped = fill_retrieved(payload, [], ["1342: bought bread"], home)
+    assert grepped["retrieved"] == "1341: Tomas Ferrer lent me 30 ducats"
+    assert grepped["retrieved_source"] == "memory-grep"
+    assert fill_retrieved(payload, ["her father lent me 30"], [], home)["retrieved_source"] == "recall"
+    assert "retrieved" not in fill_retrieved({"who": "Zorzi", "npc": "zorzi"}, [], [], home)
 
 
 def test_home_memory_diff(tmp_path: Path) -> None:

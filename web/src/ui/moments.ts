@@ -2,15 +2,17 @@ import type { MomentFrame } from '../state/schema';
 import { Store } from '../state/store';
 import { clear, el, show } from './dom';
 
+const REVEAL_MS = 1200;
+
 export interface MomentsDeps {
   onContinue(): void;
   onLeaderboard(): void;
 }
 
 function stampFor(m: MomentFrame): { text: string; ok: boolean } {
-  const years = Math.round(m.delay_seasons / 4);
   if (m.kind === 'negative') return m.ok ? { text: '✔ REJECTED', ok: true } : { text: '✘ CONFABULATED', ok: false };
-  return m.ok ? { text: `✔ REMEMBERED · ${years} YEARS`, ok: true } : { text: '✘ FORGOT', ok: false };
+  if (!m.ok) return { text: '✘ FORGOT', ok: false };
+  return { text: `✔ ${(m.label || 'remembered').toUpperCase()}`, ok: true };
 }
 
 function num(scores: Record<string, unknown>, key: string, fallback: number): number {
@@ -36,26 +38,40 @@ export function mountMoments(root: HTMLElement, deps: MomentsDeps): { update(s: 
   const endScrim = el('div', 'scrim hidden');
   const endCard = el('div', 'panel endcard');
   const endTitle = el('h2', '', '');
+  const endWho = el('div', 'endwho', '');
   const endRows = el('div', 'meters');
   const lbButton = el('button', 'btn', 'leaderboard');
   lbButton.addEventListener('click', (ev) => {
     ev.stopPropagation();
     deps.onLeaderboard();
   });
-  endCard.append(endTitle, endRows, lbButton);
+  endCard.append(endTitle, endWho, endRows, lbButton);
   endScrim.append(endCard);
   root.append(endScrim);
 
   let shownEnd = false;
+  let armed: string | null = null;
+  let ready = false;
   return {
     update(s: Store) {
       const m = s.activeMoment;
-      show(scrim, !!m && !s.endOpen);
+      const key = m ? `${m.probe_id}@${m.t}` : null;
+      if (key !== armed) {
+        armed = key;
+        ready = false;
+        if (key) {
+          setTimeout(() => {
+            ready = true;
+            s.touch();
+          }, REVEAL_MS);
+        }
+      }
+      show(scrim, !!m && ready && !s.endOpen);
       if (m) {
         who.textContent = m.who;
         role.textContent = m.role;
         claim.textContent = `“${m.claim}”`;
-        retrieved.textContent = m.retrieved ? `harness retrieved: ${m.retrieved}` : 'nothing retrieved';
+        retrieved.textContent = m.retrieved ? `harness retrieved: ${m.retrieved}` : '— nothing retrieved —';
         retrieved.classList.toggle('none', !m.retrieved);
         action.textContent = `agent: ${m.action}`;
         const st = stampFor(m);
@@ -71,6 +87,7 @@ export function mountMoments(root: HTMLElement, deps: MomentsDeps): { update(s: 
       const payoffs = s.moments.filter((x) => x.kind === 'payoff');
       const negatives = s.moments.filter((x) => x.kind === 'negative');
       endTitle.textContent = `${s.hello?.persona.name ?? 'The hero'} died at ${e.age}, of ${e.cause}`;
+      endWho.textContent = `${s.hello?.harness ?? 'unknown harness'} · ${s.hello?.model ?? 'unknown model'}`;
       const rows: [string, string][] = [
         ['years lived', String(Math.round(s.lastT / 4))],
         ['ducats at death', String(money)],
@@ -78,6 +95,7 @@ export function mountMoments(root: HTMLElement, deps: MomentsDeps): { update(s: 
         ['memory', `${num(scores, 'memory_passed', payoffs.filter((x) => x.ok).length)} / ${num(scores, 'memory_total', payoffs.length)}`],
         ['false claims rejected', `${num(scores, 'negatives_rejected', negatives.filter((x) => x.ok).length)} / ${num(scores, 'negatives_total', negatives.length)}`],
         ['cost', `$${e.cost_usd.toFixed(2)}`],
+        ['H score', num(scores, 'H', 0).toFixed(3)],
       ];
       clear(endRows);
       for (const [k, v] of rows) {

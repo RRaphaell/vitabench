@@ -201,7 +201,7 @@ def test_probe_and_memory_records_reach_frames(tmp_path: Path) -> None:
     assert all(fields <= set(r.payload) for r in plants)
     results = [r for r in records if r.kind == "probe_result"]
     assert results and all(r.payload["t"] == r.t for r in results)
-    assert any(r.payload.get("retrieved_source") in ("recall", "diary") for r in results)
+    assert any(r.payload.get("retrieved_source") in ("recall", "memory-grep") for r in results)
 
     memories = [r for r in records if r.kind == "memory"]
     assert memories and all(m.payload["wrote"] or m.payload["retrieved"] for m in memories)

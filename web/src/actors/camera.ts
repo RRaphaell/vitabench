@@ -3,11 +3,14 @@ import type { WorldHandles } from './types';
 
 export type CameraMode = 'follow' | 'overview';
 
-const DEFAULT_HALF = 14;
-const MIN_HALF = 8;
+const FOLLOW_HALF = 9;
+const OVERVIEW_HALF = 14;
+const MIN_HALF = 6;
 const MAX_HALF = 40;
+const FOLLOW_PITCH = MathUtils.degToRad(42);
+const OVERVIEW_PITCH = MathUtils.degToRad(35);
 const MIN_PITCH = MathUtils.degToRad(25);
-const MAX_PITCH = MathUtils.degToRad(55);
+const MAX_PITCH = MathUtils.degToRad(70);
 const DISTANCE = 160;
 
 export interface CameraRig {
@@ -16,6 +19,9 @@ export interface CameraRig {
   setMode(mode: CameraMode): void;
   toggle(): void;
   follow(target: Vector3): void;
+  focus(point: Vector3 | null): void;
+  pushOverview(seconds: number): void;
+  distanceToTarget(): number;
   mode(): CameraMode;
   project(v: Vector3): { x: number; y: number };
   dispose(): void;
@@ -31,12 +37,17 @@ export function createCamera(renderer: WebGLRenderer, world: WorldHandles): Came
   ]).clone();
 
   let yaw = Math.PI / 4;
-  let pitch = MathUtils.degToRad(35);
-  let half = DEFAULT_HALF;
-  let mode: CameraMode = 'overview';
+  let pitch = FOLLOW_PITCH;
+  let manualPitch = false;
+  let half = FOLLOW_HALF;
+  let halfTarget = FOLLOW_HALF;
+  let manualZoom = false;
+  let mode: CameraMode = 'follow';
+  let overviewHold = 0;
   const target = centre.clone();
   const desired = centre.clone();
   const heroTarget = centre.clone();
+  let focusPoint: Vector3 | null = null;
 
   const applyFrustum = () => {
     const width = canvas.clientWidth || canvas.width || 1;
@@ -77,6 +88,7 @@ export function createCamera(renderer: WebGLRenderer, world: WorldHandles): Came
   const onPointerMove = (event: PointerEvent) => {
     if (!dragging) return;
     yaw -= (event.clientX - lastX) * 0.006;
+    if (event.clientY !== lastY) manualPitch = true;
     pitch = MathUtils.clamp(pitch + (event.clientY - lastY) * 0.004, MIN_PITCH, MAX_PITCH);
     lastX = event.clientX;
     lastY = event.clientY;
@@ -89,8 +101,8 @@ export function createCamera(renderer: WebGLRenderer, world: WorldHandles): Came
 
   const onWheel = (event: WheelEvent) => {
     event.preventDefault();
-    half = MathUtils.clamp(half * (1 + Math.sign(event.deltaY) * 0.12), MIN_HALF, MAX_HALF);
-    applyFrustum();
+    manualZoom = true;
+    halfTarget = MathUtils.clamp(halfTarget * (1 + Math.sign(event.deltaY) * 0.12), MIN_HALF, MAX_HALF);
   };
 
   const onResize = () => applyFrustum();
@@ -111,8 +123,21 @@ export function createCamera(renderer: WebGLRenderer, world: WorldHandles): Came
       lastHeight = canvas.clientHeight;
       applyFrustum();
     }
-    desired.copy(mode === 'follow' ? heroTarget : centre);
+    if (overviewHold > 0) overviewHold -= dt;
+    const showing: CameraMode = overviewHold > 0 ? 'overview' : mode;
+    if (focusPoint) desired.copy(focusPoint);
+    else desired.copy(showing === 'follow' ? heroTarget : centre);
+    const close = !!focusPoint || showing === 'follow';
+    if (!manualZoom) halfTarget = close ? FOLLOW_HALF : OVERVIEW_HALF;
+    if (!manualPitch) {
+      const wanted = close ? FOLLOW_PITCH : OVERVIEW_PITCH;
+      if (Math.abs(wanted - pitch) > 1e-4) pitch += (wanted - pitch) * Math.min(1, dt * 3);
+    }
     target.lerp(desired, Math.min(1, dt * 2.4));
+    if (Math.abs(halfTarget - half) > 0.01) {
+      half += (halfTarget - half) * Math.min(1, dt * 3.2);
+      applyFrustum();
+    }
     place();
   };
 
@@ -121,14 +146,28 @@ export function createCamera(renderer: WebGLRenderer, world: WorldHandles): Came
     update,
     setMode: (next) => {
       mode = next;
+      manualZoom = false;
+      manualPitch = false;
+      overviewHold = 0;
     },
     toggle: () => {
       mode = mode === 'follow' ? 'overview' : 'follow';
+      manualZoom = false;
+      manualPitch = false;
+      overviewHold = 0;
     },
     follow: (position) => {
       heroTarget.copy(position);
     },
-    mode: () => mode,
+    focus: (point) => {
+      focusPoint = point ? point.clone() : null;
+      manualZoom = false;
+    },
+    pushOverview: (seconds) => {
+      overviewHold = Math.max(overviewHold, seconds);
+    },
+    distanceToTarget: () => camera.position.distanceTo(target),
+    mode: () => (overviewHold > 0 ? 'overview' : mode),
     project: (v) => {
       const projected = v.clone().project(camera);
       const width = canvas.clientWidth || 1;

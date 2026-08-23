@@ -1,19 +1,23 @@
 import * as THREE from 'three';
-import { createStage, type Stage } from './dev/fixtures/stage';
+import { createStage, type Stage } from './stage';
 import { Replayer } from './state/replayer';
 import { Transport } from './state/transport';
 import { store } from './state/store';
 import { mountUi } from './ui';
 
 const ENGINE = 'http://localhost:8700';
+const BANNER_KINDS = new Set(['plague', 'war', 'flood', 'politics']);
 const devModules = import.meta.glob(['./dev/*.ts']);
 
-async function loadFixture(replayer: Replayer): Promise<void> {
+async function runNames(): Promise<string[]> {
   try {
-    const mod = (await import('./dev/fixtures/demo_frames.json')) as { default: unknown[] };
-    replayer.load(mod.default as never[]);
-  } catch (err) {
-    console.error('[vitabench] dev fixture missing', err);
+    const res = await fetch('/runs/index.json', { cache: 'no-store' });
+    if (!res.ok) return ['demo'];
+    const rows = (await res.json()) as { name: string }[];
+    const names = rows.map((r) => r.name);
+    return ['demo', ...names.filter((n) => n !== 'demo')];
+  } catch {
+    return ['demo'];
   }
 }
 
@@ -24,16 +28,12 @@ async function pickSource(params: URLSearchParams, replayer: Replayer): Promise<
     transport.open();
     return transport;
   }
-  const run = params.get('run');
-  if (run && run !== 'fixture') {
-    for (const url of [`${ENGINE}/runs/${run}/frames`, `/runs/${run}/frames.json`, `${ENGINE}/runs/${run}/frames.json`]) {
+  const named = params.get('run');
+  for (const run of named ? [named] : await runNames()) {
+    for (const url of [`/runs/${run}/frames.json`, `${ENGINE}/runs/${run}/frames`]) {
       if (await replayer.loadFromUrl(url)) return null;
     }
-  } else if (!run) {
-    if (await replayer.loadFromUrl('/runs/demo/frames.json')) return null;
-    if (await replayer.loadFromUrl(`${ENGINE}/runs/demo/frames`)) return null;
   }
-  await loadFixture(replayer);
   return null;
 }
 
@@ -50,6 +50,19 @@ async function runDevMount(name: string, root: HTMLElement): Promise<boolean> {
 function personIdFor(name: string): string | null {
   const match = store.hello?.roster.find((r) => r.name === name);
   return match ? match.id : null;
+}
+
+function bigEvent(): string | null {
+  const frame = store.frameAt(store.cursor);
+  const hit = frame?.events.find((e) => e.active && BANNER_KINDS.has(e.kind));
+  return hit ? hit.id : null;
+}
+
+function fail(root: HTMLElement, message: string): void {
+  const panel = document.createElement('div');
+  panel.className = 'panel loadfail';
+  panel.textContent = message;
+  root.append(panel);
 }
 
 async function boot(): Promise<void> {
@@ -72,9 +85,15 @@ async function boot(): Promise<void> {
     const deadline = performance.now() + 4000;
     while (!store.hello && performance.now() < deadline) await new Promise((r) => setTimeout(r, 100));
   }
+  if (!store.hello) {
+    fail(root, 'no run loaded — pass ?run=<name> or start the engine on :8700');
+    return;
+  }
 
-  const stage: Stage = await createStage(renderer, store);
+  const stage: Stage = await createStage(renderer, store.hello);
   const ui = mountUi(root, store, replayer, () => stage.toggleCamera());
+
+  if (params.get('view') === 'overview') stage.setCameraMode('overview');
 
   const seekTo = params.get('t');
   if (seekTo !== null && Number.isFinite(Number(seekTo))) replayer.seek(Number(seekTo), true);
@@ -89,10 +108,7 @@ async function boot(): Promise<void> {
     else ui.closeInspector();
   });
 
-  const resize = () => {
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    stage.resize(window.innerWidth, window.innerHeight);
-  };
+  const resize = () => renderer.setSize(window.innerWidth, window.innerHeight);
   window.addEventListener('resize', resize);
   resize();
 
@@ -101,6 +117,7 @@ async function boot(): Promise<void> {
   painted.vitabenchFrames = 0;
   const clock = new THREE.Clock();
   let shownMoment: string | null = null;
+  let shownEvent: string | null = null;
   let sepia = false;
   renderer.setAnimationLoop(() => {
     const dt = Math.min(0.1, clock.getDelta());
@@ -111,15 +128,24 @@ async function boot(): Promise<void> {
     const key = moment ? `${moment.probe_id}@${moment.t}` : null;
     if (key !== shownMoment) {
       shownMoment = key;
-      stage.highlight(moment ? personIdFor(moment.who) : null);
+      const who = moment ? personIdFor(moment.who) : null;
+      stage.highlight(who);
+      stage.focusOn(moment ? who : null);
+    }
+    const event = bigEvent();
+    if (event !== shownEvent) {
+      shownEvent = event;
+      if (event && !moment) stage.pushOverview(4);
     }
     if (sepia !== store.endOpen) {
       sepia = store.endOpen;
       stage.setSepia(sepia);
+      if (sepia) stage.focusOn(null);
     }
     bubble.copy(stage.heroPosition()).setY(stage.heroPosition().y + 1.6);
-    ui.frame(stage.project(bubble));
-    renderer.render(stage.scene, stage.camera);
+    const talking = stage.talkingBubble();
+    ui.frame(stage.project(bubble), talking ? stage.project(talking.at) : null);
+    stage.render(renderer);
     painted.vitabenchFrames += 1;
   });
 }

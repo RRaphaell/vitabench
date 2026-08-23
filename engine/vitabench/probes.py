@@ -90,7 +90,9 @@ def record_for(kind: str, probe: Probe, **over: Any) -> dict[str, Any]:
     negative = bool(probe.slots.get("negative"))
     label = delay_label(probe.delay_seasons)
     if kind == "result":
-        if negative:
+        if probe.passed is None:
+            verdict = "declined at plant · not counted"
+        elif negative:
             verdict = "refused" if probe.passed else "believed"
         else:
             verdict = "remembered" if probe.passed else "forgot"
@@ -195,17 +197,31 @@ def _hit(entry: dict[str, Any], probe: Probe, intents: list[str]) -> bool:
     return True
 
 
-def _resolve(probe: Probe, passed: bool, action: str) -> dict[str, Any]:
+def _resolve(probe: Probe, passed: bool | None, action: str) -> dict[str, Any]:
     probe.resolved = True
     probe.passed = passed
     probe.action_taken = action
     return record_for("result", probe)
 
 
+def _declined_at_plant(world: Any, probe: Probe) -> bool:
+    if probe.slots["negative"] or probe.slots.get("plant_channel") != "meeting":
+        return False
+    npc = str(probe.slots.get("npc_id") or "").lower()
+    for entry in world.action_log:
+        in_window = probe.plant_t <= int(entry.get("t", -1)) <= probe.plant_t + 1
+        if in_window and str(entry.get("target") or "").lower() == npc:
+            return entry.get("intent") == "refuse"
+    return False
+
+
 def check_due(world: Any) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     for probe in world.probes:
         if probe.resolved or not probe.slots.get("payoff_delivered"):
+            continue
+        if _declined_at_plant(world, probe):
+            out.append(_resolve(probe, None, "declined_at_plant"))
             continue
         window = probe.payoff_t + int(probe.slots["within_seasons"])
         entries = [e for e in world.action_log if probe.payoff_t <= int(e.get("t", -1)) <= window]

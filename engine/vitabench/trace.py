@@ -7,37 +7,21 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
+from vitabench.recall import MemoryLog, memory_file_lines
 from vitabench.schema import AnyFrame, EndFrame, Frame, HelloFrame, MemoryFrame, MomentFrame, TraceRecord
 
 TRACE_NAME = "trace.jsonl"
 META_NAME = "meta.json"
 FRAMES_NAME = "frames.json"
 PROBE_KINDS = ("probe_plant", "probe_payoff", "probe_result")
-RECALL_JOIN = " · "
-KEY_MIN = 3
 
 
-class MemoryLog:
-    def __init__(self) -> None:
-        self.recall: dict[int, list[str]] = {}
-        self.wrote: list[tuple[int, str]] = []
-
-    def add(self, t: int, wrote: Iterable[str], retrieved: Iterable[str]) -> None:
-        lines = [str(line).strip() for line in retrieved if str(line).strip()]
-        if lines:
-            self.recall.setdefault(int(t), []).extend(lines)
-        self.wrote.extend((int(t), str(line).strip()) for line in wrote if str(line).strip())
-
-    def resolve(self, t: int, who: str, npc_id: str) -> tuple[str | None, str | None]:
-        recalled = self.recall.get(int(t)) or []
-        if recalled:
-            return RECALL_JOIN.join(recalled), "recall"
-        keys = {w.lower() for w in who.replace(",", " ").split() if len(w) >= KEY_MIN}
-        keys |= {w for w in npc_id.lower().replace("_", " ").split() if len(w) >= KEY_MIN}
-        for when, line in reversed(self.wrote):
-            if when <= t and any(key in line.lower() for key in keys):
-                return line, "diary"
-        return None, None
+def llm_cost(records: Iterable[TraceRecord]) -> float:
+    total = 0.0
+    for record in records:
+        if record.kind == "llm":
+            total += float(record.cost_usd or record.payload.get("cost_usd") or 0.0)
+    return round(total, 6)
 
 
 def new_run_id() -> str:
@@ -197,14 +181,16 @@ def _moment(record: TraceRecord, superseded: set[str], log: MemoryLog) -> Moment
     return moment_from_payload(payload, record.t, record.kind)
 
 
-def frames_from_trace(records: Iterable[TraceRecord], hello: HelloFrame) -> list[AnyFrame]:
+def frames_from_trace(
+    records: Iterable[TraceRecord], hello: HelloFrame, meta: dict[str, Any] | None = None
+) -> list[AnyFrame]:
     records = list(records)
     superseded = {
         str(r.payload.get("probe_id") or r.payload.get("id") or "")
         for r in records
         if r.kind == "probe_result"
     }
-    log = MemoryLog()
+    log = MemoryLog(memory_file_lines((meta or {}).get("home")))
     memory_by_t: dict[int, MemoryFrame] = {}
     for record in records:
         if record.kind == "memory":
@@ -240,7 +226,7 @@ def frames_from_trace(records: Iterable[TraceRecord], hello: HelloFrame) -> list
             age=int(death.get("age", 0)),
             cause=str(death.get("cause", "unknown")),
             scores=scores,
-            cost_usd=float(scores.get("cost_usd", cost)),
+            cost_usd=llm_cost(records) or float(scores.get("cost_usd") or cost),
         )
     )
     return frames
@@ -248,7 +234,7 @@ def frames_from_trace(records: Iterable[TraceRecord], hello: HelloFrame) -> list
 
 def write_frames_json(run_dir: str | Path) -> Path:
     records = read_trace(run_dir)
-    frames = frames_from_trace(records, hello_from_trace(records))
+    frames = frames_from_trace(records, hello_from_trace(records), read_meta(run_dir))
     path = Path(run_dir) / FRAMES_NAME
     payload = [f.model_dump(by_alias=True) for f in frames]
     path.write_text(json.dumps(payload, ensure_ascii=False, default=_plain), encoding="utf-8")

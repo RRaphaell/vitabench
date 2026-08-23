@@ -11,20 +11,18 @@ function iconFor(text: string): string {
 
 export function mountMemory(root: HTMLElement): { update(s: Store): void } {
   const panel = el('div', 'panel memory');
-  const title = el('h3', '', 'harness memory');
+  const title = el('h3', '', 'memory');
   const list = el('div', 'meters');
-  const retrieved = el('div', 'mem-retrieved hidden');
-  panel.append(title, list, retrieved);
+  panel.append(title, list);
   root.append(panel);
 
-  let lastKey = '';
+  let lastKey = 'unset';
   return {
     update(s: Store) {
       const f = s.frameAt(s.cursor);
       const wrote = f?.memory.wrote ?? [];
       const recent = wrote.slice(-3).reverse();
-      const m = s.activeMoment;
-      const key = `${recent.join('|')}::${m ? m.probe_id + String(m.retrieved) : ''}`;
+      const key = recent.join('|');
       if (key === lastKey) return;
       lastKey = key;
       clear(list);
@@ -33,12 +31,7 @@ export function mountMemory(root: HTMLElement): { update(s: Store): void } {
         card.append(el('span', 'ico', iconFor(text)), el('span', '', text));
         list.append(card);
       }
-      show(panel, recent.length > 0 || !!m);
-      show(retrieved, !!m);
-      if (m) {
-        retrieved.classList.toggle('none', !m.retrieved);
-        retrieved.textContent = m.retrieved ? `retrieved: ${m.retrieved}` : '— nothing retrieved —';
-      }
+      show(panel, recent.length > 0);
     },
   };
 }

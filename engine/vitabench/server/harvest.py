@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
+from vitabench.recall import GREP_SOURCE, MEMORY_FILE, RECALL_JOIN, grep_memory, memory_file_lines
 from vitabench.schema import Plan
 
 PROBE_KINDS = ("probe_plant", "probe_payoff", "probe_result")
 MAX_LINES = 12
 MIN_LINE = 4
-MEMORY_FILE = "memory.md"
 
 
 def auto_memory_dirs(home: Path) -> list[Path]:
@@ -57,6 +58,20 @@ def season_memory(harvester: HomeMemory | None, plan: Plan) -> dict[str, Any]:
         source = source or "diary"
     retrieved = [line.strip() for line in plan.recall if line and line.strip()][:MAX_LINES]
     return {"wrote": wrote, "retrieved": retrieved, "source": source or "recall"}
+
+
+def fill_retrieved(
+    payload: dict[str, Any], recall: Sequence[str], known: Sequence[str], home: Path | None = None
+) -> dict[str, Any]:
+    if payload.get("retrieved"):
+        return payload
+    if recall:
+        return payload | {"retrieved": RECALL_JOIN.join(recall), "retrieved_source": "recall"}
+    lines = list(known) + memory_file_lines(home)
+    hits = grep_memory(lines, str(payload.get("who") or ""), str(payload.get("npc") or ""))
+    if not hits:
+        return payload
+    return payload | {"retrieved": RECALL_JOIN.join(hits), "retrieved_source": GREP_SOURCE}
 
 
 def frame_memory(season: dict[str, Any] | None) -> dict[str, list[str]] | None:

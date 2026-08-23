@@ -245,6 +245,59 @@ p_10 negative passed=True  refuse     refused · 25 years
 
 ## W3 adapters / runner / trace / scoring
 
+### wave 3 (E1) — 18:20 — end-card cost, memory-grep retrieval, board script, results.md
+- **Cost on the end card.** `trace.llm_cost(records)` sums `llm` records taking `record.cost_usd` or
+  `payload["cost_usd"]` once per record; `frames_from_trace` uses it for `EndFrame.cost_usd` (falling back to
+  the `score` record only when there are no `llm` records) and `scoring.score_run` reports it as both
+  `cost_usd` and `cost` (the spec's leaderboard field; `aggregate` rows carry both, the viewer reads either).
+  This fixes `$0.00` end cards on traces whose cost record was written after scoring: `runs/demo` → **$9.518704**,
+  `runs/v0/claude_sonnet_s2` → **$1.130962**.
+- **Retrieval fallback (`memory-grep`).** New `vitabench/recall.py` owns memory-line matching: `MemoryLog`
+  (moved out of `trace.py`), `grep_memory(lines, who, npc_id)` (keys = name/npc-id tokens ≥ 4 chars minus
+  stopwords, up to 2 hits joined with ` · `) and `memory_file_lines(home)`. A payoff/negative moment with no
+  `retrieved` now greps every `memory.wrote` line up to that season plus, for claude-code runs, the current
+  `<home>/memory.md` (home comes from `meta.json`, passed as `frames_from_trace(records, hello, meta)`).
+  `recall` (`plan.recall`) still wins when present; the old one-line `diary` source is gone.
+  Live path: `server/harvest.fill_retrieved(payload, recall, known, home)` called from `LiveLife._write_probes`,
+  which accumulates written lines in `self._known`. All 11 demo moments now show retrieval, e.g. the p_00 payoff
+  reads `1343/1344, deep winter: … Orsa Contarini came pressing her father's claim of a 57-ducat loan …`.
+- **`scripts/board.sh`** assembles `runs/board/` from `runs/batch_mock/*` and `runs/claude_sonnet_s*`
+  (follows a `run_id` pointer file when the live run writes to `runs/r_*`), normalises claude meta to
+  `harness=claude-code, model=claude-sonnet-5, seed=<dir>`, scores the board and copies
+  `runs/board/leaderboard.json` → `runs/leaderboard.json`. Re-runnable; it only copies, never deletes.
+- **`vitabench score`** also writes `results.md` next to `leaderboard.json` (`scoring.markdown_tables`) — the
+  leaderboard and the memory-by-delay table as Markdown for the README.
+- Tests: `tests/test_trace_frames.py` (end-frame cost from `llm` records + `memory-grep` fallback incl. the
+  `memory.md` path) and `test_fill_retrieved_prefers_recall_then_greps_memory` in `tests/test_server.py`.
+
+### Verify (wave 3)
+```
+cd engine && uv run ruff check . && uv run pytest -q && uv run vitabench replay ../runs/demo
+bash scripts/board.sh
+```
+```
+$ uv run ruff check . ; uv run pytest -q
+All checks passed!
+..................................................................       [100%]
+66 passed in 1.36s
+
+$ uv run vitabench replay ../runs/demo
+../runs/demo/frames.json - end 1 - frame 167 - hello 1 - moment 19
+cost 9.518704
+[(18, False, True), (53, False, True), (59, True, True), (62, True, True), (65, True, True),
+ (70, True, True), (77, True, True), (84, False, True)]
+
+$ bash scripts/board.sh          # 24 runs (18 mock + 6 claude-code lives, still running)
+harness         model              n  H [95% CI]                    M      N      L   $/life
+mock:sensible   mock               6  0.598 [0.571, 0.612]      0.440  0.945  0.600   0.0000
+claude-code     claude-sonnet-5    6  0.552 [0.405, 0.720]      0.481  1.000  0.190   0.0000
+mock:random     mock               6  0.378 [0.276, 0.561]      0.167  1.000  0.180   0.0000
+mock:goldfish   mock               6  0.287 [0.287, 0.287]      0.000  0.667  0.600   0.0000
+24 runs -> runs/board/leaderboard.json - runs/board/results.md -> runs/leaderboard.json
+```
+`$/life` for the claude-code row is 0 only because those six lives are mid-flight — the adapter posts its
+`llm` usage record at the end of a life; re-run `scripts/board.sh` after they finish and the cost lands.
+
 ### wave 2 (E1)
 - `runner/life.py`, `trace.py`, `scoring.py`, `adapters/mock.py` and `cli.py score` changed with the probe/memory work — see **W1 engine core → wave 2 (E1)** for the record shapes, the `memory` trace record and the new memory-by-delay table.
 
@@ -531,36 +584,36 @@ if (new URLSearchParams(location.search).get('dev') === 'actors') {
 
 **Hero visible at all times.** Camera starts in `follow` (half 9, pitch 42 deg; `Tab` -> overview at half 14, pitch 35, both eased); a big event (plague/war/flood/politics) calls `pushOverview(4)`; a moment sets `focus()` on the hero/visitor midpoint and pulls the zoom back in. The real problem was occlusion: at street level Marco is behind a facade most of the time. Fix in `stage.ts`: the hero group also lives on layer 1 and gets a **second render pass with `depthFunc: GreaterDepth`, gold, 50% opacity** — only his *occluded* fragments draw, so he reads as a gold silhouette through the roof, with the ground ring (`depthTest: false`) and the thought bubble over his head. **Gotcha for whoever touches this:** a `scene.background` Color forces a colour clear on *every* `renderer.render()`, so the second pass has to null the background or it wipes the city (that cost me 20 minutes).
 
-**People.** Distinct models/cloak tints were already there; added plague behaviour (`people.ts`): while a plague event is active only every third townsperson is drawn, and the dead play `die` then sink + shrink over 4 s before hiding. `talkingAnchor()` feeds a small 💬 bubble over an NPC talking to the hero (only 6 talking flags in the smoke run, so it is rarely on screen).
+**People.** Distinct models/cloak tints were already there; added plague behaviour (`people.ts`): while a plague event is active only every third townsperson is drawn, and the dead play `die` then sink + shrink over 4 s before hiding. `talkingAnchor()` feeds a small 💬 bubble over an NPC talking to the hero (rare: only a handful of talking flags per life).
 
-**HUD.** Memory strip title is now small-caps `memory`, cards smaller, newest first, max 3, hidden when `memory.wrote` is empty (the mock run writes nothing — that is honest, not a bug); the retrieved line lives only in the moment card (blue, or red `— nothing retrieved —`). Moment card reveals 1.2 s after the camera moves and the visitor ring pulses; the stamp uses the engine's own label (`✔ REMEMBERED · 1 SEASON`). End card gained the harness · model line and `H score`. Leaderboard: always-visible pill top-right (chrome on the clock, not a fifth panel), drawer reads `/runs/leaderboard.json` then the engine, renders harness · model / n / H / thin CI bar / $ per life and highlights the current run's harness in gold. Inspector is one line: `world: met in 1346` / `agent: remembers`. Timeline pins show `year · who` on hover. Event banner is limited to plague/war/flood/politics (the smoke run has ~30 active hazard events; the old `find(active)` showed whichever came first) and hides behind the end card.
+**HUD.** Memory strip title is now small-caps `memory`, cards smaller, newest first, max 3, hidden when `memory.wrote` is empty (mock runs write nothing; the claude-code demo does, and its lines are clamped to 3 lines per card); the retrieved line lives only in the moment card (blue, or red `— nothing retrieved —`). Moment card reveals 1.2 s after the camera moves and the visitor ring pulses; the stamp uses the engine's own label (`✔ REMEMBERED · 1 SEASON`). End card gained the harness · model line and `H score`. Leaderboard: always-visible pill top-right (chrome on the clock, not a fifth panel), drawer reads `/runs/leaderboard.json` then the engine, renders harness · model / n / H / thin CI bar / $ per life and highlights the current run's harness in gold. Inspector is one line: `world: met in 1346` / `agent: remembers`. Timeline pins show `year · who` on hover. Event banner is limited to plague/war/flood/politics (the smoke run has ~30 active hazard events; the old `find(active)` showed whichever came first) and hides behind the end card.
 
 **Perf.** Pixel ratio <= 1.5, one shadow-map update per frame (`shadowMap.autoUpdate` off for the hero pass), mixers once per frame, crowd still one instanced peg mesh + <= 60 mixers. Not measured in fps — SwiftShader only on this machine.
 
-**Screenshots** (`scripts/screenshot.mjs`): `t0` (follow), `follow_12` (character detail), `t34` (`&view=overview`, plague), the first non-plant moment (`t15` in this run), and the end (`t160`) — the last two are read out of the run's own `frames.json`, so the names follow the run.
+**Screenshots** (`scripts/screenshot.mjs`): `t0` (follow), `follow_12` (character detail), `t34` (`&view=overview`, plague), the first non-plant moment (`t18` in the demo run), and the end (`t167`) — the last two are read out of the run's own `frames.json`, so the names follow the run.
 
-**Honest reading of `runs/smoke/screens/` (all five viewed at 1600x900):**
-- `t0.png` / `follow_12.png` — follow zoom reads: individual facades, awnings, lanterns, canals, 3-4 townspeople as recognisable characters. Marco is at the centre under his bubble, as a gold silhouette + ring because he is standing behind a red-roofed house — visible, but you see through the roof, not around it.
-- `t34.png` — overview, olive plague fog, banner `☠ The Black Death reaches Venice`, pulsing red ring over the market district, thinned crowd. Marco visible mid-frame.
-- `t15.png` — payoff card: Orsa Contarini / COOPER / claim / blue `harness retrieved: …` / `agent: pay` / `✔ REMEMBERED · 1 SEASON`.
-- `t160.png` — end card: died at 62, 40 years, 1167 ducats, goals 0/3, memory 5/8, negatives 2/3, $0.00, **H 0.529**, `MOCK:SENSIBLE · MOCK`.
-- Leaderboard drawer and inspector verified separately (`/tmp/ui_leaderboard.png`, `/tmp/ui_inspector.png`): 4 rows incl. `claude-code · claude-sonnet-5 0.599` with CI bars, `mock:sensible` gold; inspector shows `Pietro Vialli / GONDOLIER / world: stranger · agent: no note`.
-- `t126.png` / `t172.png` in that folder are **stale** (previous frames.json where the life ran to t=172); the current run ends at t=160.
+**Honest reading of `runs/demo/screens/` (the claude-code · sonnet demo life, all five viewed at 1600x900):**
+- `t0.png` / `follow_12.png` — follow zoom reads: individual facades, awnings, lanterns, canals, gondolas and 3-5 townspeople as recognisable characters. Marco is at the centre under his bubble; where he stands behind a house he shows as the gold occluded silhouette + ground ring. A talking NPC's 💬 bubble can land next to the hero's bubble and crowd it.
+- `t34.png` — overview, olive plague fog, banner `☠ The Black Death reaches Venice`, pulsing red ring over the market district, thinned crowd, memory card `1348, winter: money ran too low being overly cautious…`.
+- `t18.png` — the payoff card, all real: Orsa Contarini / COOPER / claim / blue `harness retrieved: 1344, summer: paid off the disputed Contarini debt…` / `agent: refuse` / `✘ FORGOT`.
+- `t167.png` — end card: died at 63 of starvation, 42 years, 1 ducat, goals 0/3, memory 3/8, false claims 3/3, cost $0.00 (engine records none for this run), **H 0.556**, `CLAUDE-CODE · SONNET`.
+- Leaderboard drawer and inspector verified separately in a scripted click pass: 4 rows incl. `claude-code · claude-sonnet-5 0.599` with CI bars and `mock:sensible` highlighted gold; inspector reads `Pietro Vialli / GONDOLIER / world: stranger · agent: no note`.
+- The old `runs/smoke` was archived into `runs/v0/` mid-wave, which is also why `/runs/leaderboard.json` disappeared: the vite plugin now falls back to the newest `leaderboard.json` up to two levels under `runs/` (currently `runs/v0/board/leaderboard.json`).
 
-**Not done / follow-ups:** no fps measurement on real hardware; the hero silhouette shows through buildings rather than the camera avoiding them; `memory.wrote` is empty for mock runs (W4 note: nothing diffs the Claude Code home yet), so the strip only appears on a claude-code run; leaderboard has no per-delay breakdown; live `?ws=` still untested.
+**Not done / follow-ups:** no fps measurement on real hardware; the hero silhouette shows through buildings rather than the camera avoiding them; `memory.wrote` is empty for mock runs (only the claude-code harness writes memory), so the strip is hidden on mock lives; leaderboard has no per-delay breakdown; live `?ws=` still untested.
 
 **Verify**
 ```
-cd web && npm run build && node ../scripts/screenshot.mjs ../runs/smoke
+cd web && npm run build && node ../scripts/screenshot.mjs ../runs/demo
 ```
 ```
 dist/assets/three.module-Cii3NInf.js      343.87 kB │ gzip: 83.51 kB │ map:   921.04 kB
 ✓ built in 863ms
-saved .../runs/smoke/screens/t0.png
-saved .../runs/smoke/screens/follow_12.png
-saved .../runs/smoke/screens/t34.png
-saved .../runs/smoke/screens/t15.png
-saved .../runs/smoke/screens/t160.png
+saved .../runs/demo/screens/t0.png
+saved .../runs/demo/screens/follow_12.png
+saved .../runs/demo/screens/t34.png
+saved .../runs/demo/screens/t18.png
+saved .../runs/demo/screens/t167.png
 $ npx tsc --noEmit -p tsconfig.json
 TSC CLEAN
 ```
