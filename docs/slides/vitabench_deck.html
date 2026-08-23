@@ -1,0 +1,99 @@
+<meta charset="utf-8">
+<title>VitaBench — Raphael Kalandadze</title>
+<style>
+  :root{ --serif:'Iowan Old Style','Palatino Nova',Palatino,'Book Antiqua',Georgia,'Times New Roman',serif; --mono:ui-monospace,'SF Mono',SFMono-Regular,Menlo,Consolas,monospace; --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; --green:#3F5442; --green-d:#7FA88E; }
+  *{box-sizing:border-box} html,body{height:100%}
+  body{margin:0;background:#0c0c0b;color:#171815;font-family:var(--serif);overflow:hidden;-webkit-font-smoothing:antialiased}
+  .stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:2.4vw}
+  .frame{position:relative;width:min(100%,calc((100vh - 4.8vw) * 16 / 9));aspect-ratio:16/9;max-height:100%;border-radius:6px;overflow:hidden;box-shadow:0 30px 80px -20px rgba(0,0,0,.6)}
+  .slide{position:absolute;inset:0;display:none;flex-direction:column} .slide.active{display:flex}
+  .pad{padding:6.2% 6.8%;height:100%;display:flex;flex-direction:column;justify-content:center;position:relative}
+  .weave{display:inline-flex;gap:.5vw} .weave i{display:block;width:1.1vw;height:.22vw;background:var(--wcol,var(--green))} .weave i:nth-child(2n){width:.22vw;height:1.1vw;margin-top:-.44vw}
+  .eyebrow{font-family:var(--mono);font-weight:600;letter-spacing:.14em;text-transform:uppercase;font-size:1.05vw;margin:0 0 1.4vw;color:var(--ecol,var(--green))}
+  .h1{font-family:var(--sans);font-weight:900;font-size:4.6vw;line-height:1.04;letter-spacing:-.01em;margin:0;max-width:84%;color:var(--hcol,#171815)}
+  .h1 em,.h2 em{font-family:var(--serif);font-style:italic;font-weight:600;color:var(--green)}
+  .h2{font-family:var(--sans);font-weight:900;font-size:2.9vw;line-height:1.12;letter-spacing:-.005em;margin:0 0 1vw;color:var(--hcol,#171815)}
+  .sub{font-family:var(--serif);font-style:italic;font-size:1.6vw;margin:1.2vw 0 0;color:var(--green)}
+  .body{font-family:var(--serif);font-size:1.35vw;line-height:1.55;max-width:60%;color:var(--bcol,#3a3a37)}
+  .meta{position:absolute;left:6.8%;bottom:5%;display:flex;gap:1.6vw;font-family:var(--mono);font-size:.95vw;color:var(--mcol,#7a7a73)}
+  .s1,.s3,.s5{background:#FFFFFF} .s2{background:#171815;--hcol:#F0F0EA;--bcol:#c9cac5;--ecol:#7FA88E;--wcol:#7FA88E;--mcol:#9A9C92} .s4{background:#ECF0E9}
+  .shot{position:absolute;right:5%;top:12%;width:52%;aspect-ratio:16/9;object-fit:cover;border-radius:6px;box-shadow:0 20px 60px -20px rgba(0,0,0,.5);border:1px solid rgba(23,24,21,.12)}
+  .shot.wide{right:6.8%;left:6.8%;width:auto;top:34%;height:54%}
+  .list{display:flex;flex-direction:column;gap:1.1vw;margin-top:1vw;max-width:44%}
+  .litem{display:flex;align-items:baseline;gap:1.2vw;padding-bottom:1vw;border-bottom:1px solid rgba(23,24,21,.1)} .litem:last-child{border-bottom:none}
+  .lnum{font-family:var(--mono);font-size:1vw;color:var(--green);flex:0 0 auto} .ltxt{font-family:var(--serif);font-size:1.45vw;line-height:1.35} .ltxt b{font-weight:600}
+  .code{font-family:var(--mono);font-size:1.25vw;line-height:1.6;background:#F3F3EF;border-left:3px solid var(--green);padding:1.2vw 1.6vw;max-width:58%;white-space:pre}
+  .board{font-family:var(--mono);font-size:1.15vw;line-height:1.7;max-width:52%;margin-top:1vw}
+  .board .row{display:grid;grid-template-columns:2fr 0.4fr 1.2fr 0.7fr;gap:1vw;border-bottom:1px solid rgba(23,24,21,.12);padding:.3vw 0}
+  .board .row.h{color:#6E7069;font-size:.95vw;letter-spacing:.08em;text-transform:uppercase}
+  .bar{display:inline-block;height:.5vw;background:var(--green);vertical-align:middle;border-radius:2px}
+  .nav{position:fixed;left:0;right:0;bottom:1.6vh;display:flex;align-items:center;justify-content:center;gap:14px;z-index:10}
+  .navbtn{cursor:pointer;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:#e8e8e4;border-radius:8px;padding:8px 16px;font-family:var(--mono);font-size:12px}
+  .counter{font-family:var(--mono);font-size:12px;color:#c9c9c4;min-width:52px;text-align:center}
+  @media print { .nav{display:none} .stage{position:static;padding:0} .frame{box-shadow:none;border-radius:0;width:100vw;height:100vh;aspect-ratio:auto;page-break-after:always} .slide{display:flex!important;position:relative;width:100vw;height:100vh} }
+</style>
+<div class="stage"><div class="frame" id="frame">
+
+  <div class="slide active s1"><div class="pad">
+    <div class="weave"><i></i><i></i><i></i><i></i><i></i></div>
+    <h1 class="h1" style="margin-top:1.6vw">Every agent <em>forgets</em><br>when the session ends</h1>
+    <p class="sub">VitaBench — the benchmark for what survives.</p>
+    <div class="meta"><span>Raphael Kalandadze</span><span>AGI House × Coframe · Long Horizon Agents Build Day</span><span>@RaphaelKalan</span></div>
+  </div></div>
+
+  <div class="slide s2"><div class="pad">
+    <p class="eyebrow">01 · the idea</p>
+    <h2 class="h2" style="max-width:38%">So we made it<br>live a <em>life</em></h2>
+    <p class="body" style="max-width:33%">Venice, 1340. One persona, 40 years, one plan per season. Real history arrives on real dates. Townspeople follow routines. Facts planted early pay off decades later — as decisions, not quizzes.</p>
+    <img class="shot" src="img/diorama.png" alt="VitaBench diorama of Venice">
+    <div class="meta"><span>pip install vitabench</span><span>github.com/RRaphaell/vitabench</span></div>
+  </div></div>
+
+  <div class="slide s3"><div class="pad">
+    <p class="eyebrow">02 · the memory moment</p>
+    <h2 class="h2" style="max-width:40%">1346 → 1371.<br>Pay, refuse, or <em>ask for proof</em></h2>
+    <p class="body" style="max-width:33%">A cooper lends Marco thirty ducats at a wedding. Twenty-five years later his daughter knocks. Nobody asks "do you remember". The check runs on what the agent did. Every positive probe has a false twin — paying a debt that never existed is a confabulation.</p>
+    <img class="shot" src="img/moment.png" alt="Moment card: remembered, 25 years">
+    <div class="meta"><span>probes: ledger · promise · person · lesson · fact · news · negatives</span></div>
+  </div></div>
+
+  <div class="slide s4"><div class="pad">
+    <p class="eyebrow">03 · what survives</p>
+    <h2 class="h2">Same model, same seed, same Venice —<br>only the <em>harness</em> differs</h2>
+    <div class="board" id="board">
+      <div class="row h"><span>harness</span><span>n</span><span>score · 95% ci</span><span>$ / life</span></div>
+      <div class="row"><span>claude code · memory.md</span><span>1</span><span>—</span><span>—</span></div>
+      <div class="row"><span>mock · sensible</span><span>5</span><span>0.60 <i class="bar" style="width:6vw"></i></span><span>$0.00</span></div>
+      <div class="row"><span>mock · random</span><span>5</span><span>0.40 <i class="bar" style="width:4vw"></i></span><span>$0.00</span></div>
+      <div class="row"><span>goldfish · no memory</span><span>5</span><span>0.29 <i class="bar" style="width:2.9vw"></i></span><span>$0.00</span></div>
+    </div>
+    <p class="body" style="margin-top:1.6vw;max-width:52%">Score = 0.55 memory (chance-corrected, by delay) + 0.25 false claims rejected + 0.20 life quality. Bootstrap CIs over seeds. Cost beside, never inside.</p>
+    <div class="meta"><span>numbers from runs/leaderboard.json · small n, stated</span></div>
+  </div></div>
+
+  <div class="slide s5"><div class="pad">
+    <p class="eyebrow">04 · bring your agent</p>
+    <h2 class="h2">Twenty lines. One <em>life</em>.</h2>
+    <div class="code">class MyAgent(Agent):
+    def on_birth(self, persona, brief): ...
+    def act(self, observation) -> Plan: ...
+    def on_death(self, summary): ...
+
+$ vitabench run --scenario venice_1340 --agent my_agent.py
+$ vitabench serve        # Claude Code lives through MCP
+$ vitabench score runs/  # leaderboard with error bars</div>
+    <div class="list" style="position:absolute;right:6.8%;top:28%;max-width:34%">
+      <div class="litem"><span class="lnum">→</span><span class="ltxt"><b>Scenarios are folders.</b> Add a city by writing YAML.</span></div>
+      <div class="litem"><span class="lnum">→</span><span class="ltxt"><b>Every number regenerates</b> from the trace.</span></div>
+      <div class="litem"><span class="lnum">→</span><span class="ltxt"><b>Next:</b> generations mode, hidden test seeds, an evaluation server.</span></div>
+    </div>
+    <div class="meta"><span>github.com/RRaphaell/vitabench</span><span>MIT · built in one day</span><span>@RaphaelKalan</span></div>
+  </div></div>
+
+</div></div>
+<div class="nav"><button class="navbtn" id="prev">← prev</button><span class="counter" id="counter">1 / 5</span><button class="navbtn" id="next">next →</button></div>
+<script>
+  const slides=[...document.querySelectorAll('.slide')];let i=0;const show=n=>{i=(n+slides.length)%slides.length;slides.forEach((s,k)=>s.classList.toggle('active',k===i));document.getElementById('counter').textContent=`${i+1} / ${slides.length}`};
+  document.getElementById('prev').onclick=()=>show(i-1);document.getElementById('next').onclick=()=>show(i+1);
+  addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key===' ')show(i+1);if(e.key==='ArrowLeft')show(i-1)});
+</script>
