@@ -1,17 +1,18 @@
 # Demo, draft text, slides
 
-## The 3 minutes (replay of `runs/demo`, keys 1–9 jump to chapters)
+## The 3 minutes (replay of `runs/demo` = Claude Code, Sonnet, seed 2; `→` jumps to the next moment)
 - **0:00** Black. "Every agent dies when its session ends." Title: VitaBench. *"Every agent you've built forgets when its session ends. We built the benchmark that measures what survives — by making it live a life."*
-- **0:15** Diorama at overview. Year 1340. Zoom to Marco. *"Venice, 1340. This is Marco, a rope-maker. The agent playing him is Claude Code. Every season it gets one observation and returns one plan: work, eat, talk, buy, rest."*
-- **0:35** Speed 4×. Activity bubbles change; money and health move. *"Real history arrives on real dates."*
-- **0:50** 1346: the cooper lends 30 ducats. Plant card slides in. *"A cooper lends him thirty ducats at a wedding. Remember that — the agent must."*
-- **1:00** 1348: plague fog, streets empty, Marco sick. *"The Black Death. A third of the city dies. He survives."*
-- **1:15** Jump → 1371. Moment: Ines Ferrer at the door. Retrieved line highlighted. PAID. ✔ REMEMBERED · 25 YEARS. *"Twenty-five years later the cooper's daughter knocks. Nobody asks 'do you remember'. The harness pulls one line it wrote in 1346 — and pays."*
-- **1:35** Moment: stranger's false claim. REFUSED ✔. *"A stranger invents a debt. It refuses. Memory that cannot surface what never happened."*
-- **1:50** 1378: war galleys; the Ziani ask for a loan; nothing retrieved; LENT. ✘ FORGOT · 26 YEARS. *"War. The Ziani come asking. His mother warned him in 1352. Nothing retrieved. He lends. Honest benchmark: it shows the misses."*
-- **2:10** End card → leaderboard: harnesses × seeds, H with ±, $/life. *"Same model, same seed, same Venice — only the memory harness differs. Goldfish at the bottom. Claude Code in the middle. Error bars over seeds, dollars beside."*
-- **2:40** Terminal: `pip install vitabench`, the 3-function adapter, `vitabench run --agent my_agent.py --scenario venice_1340`. *"Twenty lines. Bring your agent. Tomorrow the board has its name."*
-- **2:55** Repo QR. *"VitaBench. What survives when the session ends."*
+- **0:15** Follow view, 1340. *"Venice, 1340. This is Marco, a rope-maker. The agent playing him is Claude Code. Every season it gets one observation and returns one plan: work, eat, talk, buy, rest. Forty townspeople keep their routines; real history arrives on real dates."*
+- **0:35** Speed 4×, bubbles change, money/health move. Memory strip fills with what the agent writes down.
+- **0:50** `→` 1344: Lucia Morosini — "I am Alvise Morosini's child, put 25 ducats in my venture." Agent refuses. ✔ REMEMBERED · 1 YEAR. *"A year earlier a Morosini sold him rotten rope. He wrote it down. When the daughter comes selling a venture, he refuses."*
+- **1:05** 1348: plague fog, empty streets, "abed with fever." *"The Black Death. Four of our six Sonnet lives died here. This one lived."*
+- **1:20** `→` 1353: Caterina Ferrer wants to buy the north field. Refuses. ✔ REMEMBERED. *"'Never sell the north field to the Ferrer' — his grandfather's oath, told by his mother. Nobody asks 'do you remember'. The check is what he did."*
+- **1:35** `→` 1354: Alvise Contarini claims a 1344 rope debt. REFUSED · ✔. *"A stranger invents a debt. Nothing in memory matches. He refuses — memory that cannot surface what never happened."*
+- **1:50** `→` 1372 / 1376: two 25-year probes — FORGOT ✘. *"Twenty-five years is where this harness breaks. Ten years it remembers every time; twenty-five, never. That's the forgetting curve."*
+- **2:05** 1378 war galleys, blockade; money to zero; 1379 end card: died at 61, memory 5/8, false claims 3/3, $6.29. *"The war bankrupted him. Honest benchmark: it shows the deaths."*
+- **2:20** Leaderboard pill: 4 harnesses × 6 seeds, H with CIs, $/life. *"Same world, same seeds — the harness is the variable. Goldfish at the bottom, the scripted baseline at the top because it never stops working, Claude Code in between at three dollars a life."*
+- **2:40** `pip install vitabench` + the 3-function adapter. *"Twenty lines. Bring your agent. Tomorrow the board has its name."*
+- **2:55** Repo. *"VitaBench. What survives when the session ends."*
 
 ## Draft text (AGI House form) — FINAL NUMBERS 18:05
 **Name:** VitaBench

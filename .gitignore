@@ -11,3 +11,4 @@ engine/.ruff_cache/
 .env
 .DS_Store
 *.log
+runs/demo/video/

@@ -26,13 +26,14 @@ def grep_memory(lines: Sequence[str], who: str, npc_id: str, limit: int = GREP_M
     keys = name_keys(who, npc_id)
     if not keys:
         return []
-    hits: list[str] = []
-    for line in lines:
+    scored: dict[str, tuple[int, int]] = {}
+    for index, line in enumerate(lines):
         text = clean_line(str(line))
-        low = text.lower()
-        if text and text not in hits and any(key in low for key in keys):
-            hits.append(text)
-    return hits[-limit:]
+        matched = sum(1 for key in keys if key in text.lower())
+        if text and matched:
+            scored[text] = (matched, index)
+    ranked = sorted(scored, key=lambda text: scored[text], reverse=True)
+    return ranked[:limit]
 
 
 def memory_file_lines(home: str | Path | None) -> list[str]:
@@ -61,13 +62,16 @@ class MemoryLog:
         self.wrote.extend((int(t), str(line).strip()) for line in wrote if str(line).strip())
 
     def known_at(self, t: int) -> list[str]:
-        return [line for when, line in self.wrote if when <= int(t)] + self.extra
+        return [line for when, line in self.wrote if when <= int(t)]
 
     def resolve(self, t: int, who: str, npc_id: str) -> tuple[str | None, str | None]:
         recalled = self.recall.get(int(t)) or []
-        if recalled:
-            return RECALL_JOIN.join(recalled), "recall"
+        relevant = grep_memory(recalled, who, npc_id)
+        if relevant:
+            return RECALL_JOIN.join(relevant), "recall"
         hits = grep_memory(self.known_at(t), who, npc_id)
         if hits:
             return RECALL_JOIN.join(hits), GREP_SOURCE
+        if recalled:
+            return RECALL_JOIN.join(recalled), "recall"
         return None, None

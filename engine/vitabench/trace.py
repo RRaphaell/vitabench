@@ -172,11 +172,11 @@ def _moment(record: TraceRecord, superseded: set[str], log: MemoryLog) -> Moment
     probe_id = str(payload.get("probe_id") or payload.get("id") or "")
     if record.kind == "probe_payoff" and probe_id in superseded:
         return None
-    if record.kind != "probe_plant" and not payload.get("retrieved"):
+    if record.kind != "probe_plant":
         retrieved, source = log.resolve(
             record.t, str(payload.get("who") or ""), str(payload.get("npc") or "")
         )
-        if retrieved:
+        if retrieved and (source != "recall" or not payload.get("retrieved")):
             payload = payload | {"retrieved": retrieved, "retrieved_source": source}
     return moment_from_payload(payload, record.t, record.kind)
 
