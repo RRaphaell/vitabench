@@ -13,12 +13,12 @@
 - **2:40** Terminal: `pip install vitabench`, the 3-function adapter, `vitabench run --agent my_agent.py --scenario venice_1340`. *"Twenty lines. Bring your agent. Tomorrow the board has its name."*
 - **2:55** Repo QR. *"VitaBench. What survives when the session ends."*
 
-## Draft text (AGI House form, 18:45) — fill real numbers
+## Draft text (AGI House form) — FINAL NUMBERS 18:05
 **Name:** VitaBench
-**Tagline:** The benchmark for what survives when the session ends: your agent lives one life in Venice 1340, and we measure how it lives, what it remembers, and what it costs.
-**Description:** VitaBench is an open-source long-horizon benchmark. Plug in any agent (Claude Code first) and it lives one human life in a real city at a real moment — Venice 1340–1380 — season by season: work, eat, talk, buy, rest, while the Black Death and the War of Chioggia arrive on their real dates. Facts planted early pay off decades later as decisions, not quizzes: a cooper who lent you money, a promise to your mother, a stranger's false claim. We score memory by delay, false-claim rejection, life quality, and cost, with bootstrap CIs over seeds; the model is fixed so the harness is the variable. A Simile-style isometric diorama replays any life. Built today; [N] harnesses × [S] seeds on the board. `pip install vitabench`, bring your agent.
-**Repo:** github.com/RRaphaell/vitabench
-**Stack:** Python 3.12, FastAPI, MCP (Claude Code adapter), Anthropic API, Three.js, Vite, Kenney CC0 kits, Wikipedia history.
+**Tagline:** The benchmark for what survives when the session ends: your agent lives one life in Venice 1340, and we measure how it lives, what it remembers, what it makes up, and what it costs.
+**Description:** VitaBench is an open-source long-horizon benchmark. Plug in any agent — Claude Code first, through MCP — and it lives one human life in Venice 1340–1380, season by season: work, eat, talk, buy, rest, while the Black Death and the War of Chioggia arrive on their real dates and forty scripted townspeople go about their routines. Facts planted early pay off decades later as decisions, not quizzes: a cooper's daughter claiming an old loan, a promise to your mother, a stranger's false claim. Checks run on the action log; every positive probe has a false twin. Tonight, same world and seeds, 6 lives per harness: Claude Code (Sonnet) H=0.54 [0.38, 0.72], memory 0.40, false claims rejected 7/7, $2.96/life; scripted baseline 0.60; goldfish 0.29. Four of six Sonnet lives died in the plague years; the survivors lived to 60 and 61. A Simile-style isometric diorama replays any life with the memory moments stamped ✔/✘. `pip install vitabench`, bring your agent.
+**Repo:** github.com/RRaphaell/vitabench (MIT)
+**Stack:** Python 3.12 · FastAPI · MCP (streamable HTTP) · Claude Code adapter · Anthropic API · Three.js + Vite · Kenney CC0 kits · Wikipedia history · 66 tests.
 
 ## Slides (5, brand book: white, black sans-900 headlines with one italic serif word, swamp-green hairlines, mono captions, a field-guide creature as colophon)
 1. "Every agent **_forgets_** when the session ends." — one line, creature.
