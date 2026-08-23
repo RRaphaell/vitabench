@@ -55,7 +55,7 @@ Same world, same seeds; the harness is the variable. `H = 0.55·memory + 0.25·f
 
 Claude Code memory pass rate by delay (raw, pooled): 1 season 0.43 · 1 year 0.76 · 10 years 1.00 · 25 years 0.00.
 
-What the traces say: four of six Sonnet lives ended at 31–32 in the plague years of 1348–49; the two that survived lived to 60 and 61 and were bankrupted by the War of Chioggia. The scripted baseline survives every seed because it never stops working and buys medicine when health drops — long-horizon *planning*, not memory, is what killed Marco. On memory, Claude Code rejected every false claim (7/7) and its own `memory.md` shows why: it generalized — "the Morosini family are repeat scammers" — and it cited the rule on the next knock. It remembered 10-year-old facts every time and 25-year-old facts never.
+What the traces say (12 Sonnet lives, same 12 seeds as the baselines): exactly six ended at 30–32 in the plague years of 1348–49 (five starved after choosing to rest through the price shock, one of illness); the other six lived to 60–64 — and every one of them starved during the War of Chioggia, when trade collapsed. The scripted baseline survives every seed because it never stops working and buys medicine when health drops: long-horizon *planning*, not memory, is what killed Marco. On memory, Claude Code rejected every false claim (20/20) and its own `memory.md` shows why — it generalized: "SCAM PATTERN: Morosini family are scammers" — and cited that rule on the next knock. It remembered 10-year-old facts every time and 25-year-old facts never.
 
 The demo life (`runs/demo`, seed 2): 61 years, memory 5/8, false claims 3/3, $2.96 average per life across the six.
 
