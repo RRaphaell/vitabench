@@ -14,7 +14,14 @@ done
 cp "$ROOT/web/public/assets/waternormals.jpg" "$SITE/assets/"
 cp "$ROOT/runs/demo/frames.json" "$SITE/runs/demo/frames.json"
 cp "$ROOT/runs/leaderboard.json" "$SITE/runs/leaderboard.json"
-echo '[{"name":"demo","label":"Claude Code · Sonnet · seed 2 (demo)"}]' > "$SITE/runs/index.json"
+EXTRA="claude_sonnet_s10 claude_sonnet_s0 claude_caterina_s1 claude_opus_s0"
+INDEX='[{"name":"demo","label":"Claude Code · Sonnet · Marco · seed 2 (demo)"}'
+for name in $EXTRA; do
+  [ -f "$ROOT/runs/$name/frames.json" ] || continue
+  mkdir -p "$SITE/runs/$name"; cp "$ROOT/runs/$name/frames.json" "$SITE/runs/$name/frames.json"
+  INDEX="$INDEX,{\"name\":\"$name\",\"label\":\"$name\"}"
+done
+echo "$INDEX]" > "$SITE/runs/index.json"
 if [ -f "$ROOT/web/landing/index.html" ]; then cp -R "$ROOT/web/landing/." "$SITE/"; else printf '<meta http-equiv="refresh" content="0; url=/app/?run=demo">' > "$SITE/index.html"; fi
 rm -rf "$SITE/screens"
 find "$SITE" -name ".DS_Store" -delete

@@ -4,6 +4,8 @@
 
 ![VitaBench — Marco living in Venice, Claude Code at the controls](docs/slides/img/demo.gif)
 
+**Live:** [vitabench.dev](https://vitabench.dev) — landing page and the playable replay (`/app/?run=demo`).
+
 > Built in one day at the AGI House × Coframe Long Horizon Agents Build Day (2026-08-22). Numbers below are from that day's runs; n is small and stated.
 
 ## Why
