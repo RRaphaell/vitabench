@@ -9,7 +9,7 @@
    effects: {illness_mult: 2}, duration_seasons: 2}
 - {year: 1348, season: 1, id: black_death, kind: plague,
    text: "The Black Death reaches Venice",
-   effects: {illness_mult: 12, npc_death_rate: 0.35, price_mult: 1.8}, duration_seasons: 4}
+   effects: {illness_mult: 8, npc_death_rate: 0.35, price_mult: 1.25}, duration_seasons: 4}
 - {year: 1350, season: 0, id: genoa_war, kind: war,
    text: "War with Genoa over the Straits; the Senate arms forty galleys",
    effects: {trade_mult: 0.7, wage_mult: 1.15}, duration_seasons: 20}

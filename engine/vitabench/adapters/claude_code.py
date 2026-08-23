@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import shutil
 import subprocess
 import uuid
@@ -58,8 +59,13 @@ def build_birth_prompt(persona: Any, brief: str, city: str = "Venice", year: int
     )
 
 
-def make_home(run_id: str, home_root: str = DEFAULT_HOME_ROOT) -> Path:
-    home = Path(home_root).expanduser() / run_id
+def home_for(run_id: str, home_root: str | None = None) -> Path:
+    root = home_root or os.environ.get("VITABENCH_HOME_ROOT") or DEFAULT_HOME_ROOT
+    return Path(root).expanduser() / run_id
+
+
+def make_home(run_id: str, home_root: str | None = None) -> Path:
+    home = home_for(run_id, home_root)
     home.mkdir(parents=True, exist_ok=True)
     if not (home / ".git").exists():
         subprocess.run(["git", "init", "-q"], cwd=home, check=True)
@@ -123,7 +129,7 @@ class ClaudeCodeAgent:
         persona: Any,
         brief: str = "",
         model: str = "sonnet",
-        home_root: str = DEFAULT_HOME_ROOT,
+        home_root: str | None = None,
         max_turns: int = 400,
         city: str = "Venice",
         year: int = 1340,
@@ -213,7 +219,46 @@ async def run_life_with_claude(
     persona: Any,
     brief: str = "",
     model: str = "sonnet",
-    home_root: str = DEFAULT_HOME_ROOT,
+    home_root: str | None = None,
 ) -> dict[str, Any]:
     agent = ClaudeCodeAgent(server_url, run_id, persona, brief, model, home_root)
     return await agent.run()
+
+
+async def create_run(
+    server_url: str, scenario: str, persona_id: str, seed: int, model: str
+) -> dict[str, Any]:
+    body = {
+        "scenario": scenario, "persona": persona_id, "seed": seed,
+        "harness": "claude-code", "model": model,
+    }
+    async with httpx.AsyncClient(timeout=60) as client:
+        response = await client.post(f"{server_url.rstrip('/')}/runs", json=body)
+        response.raise_for_status()
+        return response.json()
+
+
+async def save_run(server_url: str, run_id: str, out_dir: Path) -> dict[str, int]:
+    base = f"{server_url.rstrip('/')}/runs/{run_id}"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    async with httpx.AsyncClient(timeout=120) as client:
+        trace = (await client.get(f"{base}/trace")).text
+        frames = (await client.get(f"{base}/frames")).text
+    (out_dir / "trace.jsonl").write_text(trace, encoding="utf-8")
+    (out_dir / "frames.json").write_text(frames, encoding="utf-8")
+    (out_dir / "run_id").write_text(run_id + "\n", encoding="utf-8")
+    return {"records": len([line for line in trace.splitlines() if line.strip()]),
+            "frames": frames.count('"type"')}
+
+
+async def drive_life(
+    server_url: str, out_dir: Path, scenario: str, persona: Any, brief: str,
+    seed: int = 1, model: str = "sonnet", city: str = "Venice", year: int = 1340,
+) -> dict[str, Any]:
+    info = await create_run(server_url, scenario, getattr(persona, "id", None), seed, model)
+    run_id = info["run_id"]
+    (out_dir).mkdir(parents=True, exist_ok=True)
+    (out_dir / "run_id").write_text(run_id + "\n", encoding="utf-8")
+    agent = ClaudeCodeAgent(server_url, run_id, persona, brief, model, city=city, year=year)
+    result = await agent.run()
+    return result | {"out": str(out_dir), "info": info} | await save_run(server_url, run_id, out_dir)

@@ -9,12 +9,14 @@ from typing import Any
 from pydantic import ValidationError
 
 from vitabench import frames as frames_mod
+from vitabench.adapters.claude_code import home_for
 from vitabench.clock import life_seasons
 from vitabench.director import STREAM_PROBES, rng_for
 from vitabench.npcs import Roster
 from vitabench.scenario import load_scenario
 from vitabench.schema import Observation, Persona, Plan, Probe, ScenarioSpec
 from vitabench.scoring import score_run
+from vitabench.server.harvest import HomeMemory, frame_memory, season_memory, season_probes
 from vitabench.trace import (
     TraceWriter,
     frames_from_trace,
@@ -78,6 +80,9 @@ class LiveLife:
         self._pull = False
         self._last_obs: Observation | None = None
         self._probe_state: dict[str, tuple[bool, bool]] = {}
+        self.home = home_for(run_id) if harness.startswith("claude") else None
+        self._home_memory = HomeMemory(self.home) if self.home is not None else None
+        self._memory: dict[str, Any] = {}
 
         self.spec = load_scenario(_scenario_path(scenario))
         self.persona = self._pick_persona(persona)
@@ -111,7 +116,8 @@ class LiveLife:
             "t": self.t, "turns": self.turns, "frames": len(self.frames),
             "date": self.world.observe().date if self.status == ALIVE else "",
             "cost_usd": round(self.trace.cost_usd, 6),
-            "run_dir": str(self.run_dir), "error": self.error, "live": True,
+            "run_dir": str(self.run_dir), "home": str(self.home or ""),
+            "error": self.error, "live": True,
         }
 
     def subscribe(self) -> asyncio.Queue[dict[str, Any]]:
@@ -124,26 +130,11 @@ class LiveLife:
         for queue in list(self.subscribers):
             queue.put_nowait(frame)
 
-    def _write_probe(self, probe: Probe, record_kind: str) -> None:
-        payload = probe.model_dump(mode="json")
-        payload["probe_id"] = probe.id
-        payload["who"] = probe.slots.get("plant_who" if record_kind == "probe_plant" else "payoff_who", "")
-        payload["role"] = probe.slots.get("npc_role", "")
-        self.trace.write(record_kind, self.t, payload)
-        if probe.slots.get("negative") and record_kind != "probe_plant":
-            payload = payload | {"type": "negative"}
-        self._emit(_dump(frames_mod.moment(payload, self.t, record_kind)))
-
     def _write_probes(self) -> None:
-        for probe in self.world.probes:
-            before = self._probe_state.get(probe.id, (False, False))
-            now = (probe.planted, probe.resolved)
-            if now == before:
-                continue
-            self._probe_state[probe.id] = now
-            for index, kind in ((0, "probe_plant"), (1, "probe_result")):
-                if now[index] and not before[index]:
-                    self._write_probe(probe, kind)
+        for kind, payload in season_probes(self.world, self._probe_state):
+            t = int(payload.get("t") or self.world.t)
+            self.trace.write(kind, t, payload)
+            self._emit(_dump(frames_mod.moment(payload, t, kind)))
 
     async def start(self) -> dict[str, Any]:
         async with self._lock:
@@ -153,6 +144,7 @@ class LiveLife:
             self.trace.write_meta(
                 scenario=self.spec.id, persona=self.persona_id, seed=self.seed,
                 harness=self.harness, model=self.model,
+                home=str(self.home) if self.home else None,
             )
             self.trace.write("birth", 0, _dump(hello))
             self._emit(_dump(hello))
@@ -164,7 +156,7 @@ class LiveLife:
         obs = self.world.observe()
         self._last_obs = obs
         self.t = obs.t
-        frame = _dump(frames_mod.frame(self.world))
+        frame = _dump(frames_mod.frame(self.world, frame_memory(self._memory)))
         self.trace.write("observation", obs.t, {"observation": obs.model_dump(mode="json"), "frame": frame})
         self._emit(frame)
         body = obs.model_dump(mode="json")
@@ -202,10 +194,16 @@ class LiveLife:
             self.turns += 1
             for event in events:
                 self.trace.write("event", int(event.get("t", self.t)), event)
+            self._write_memory(parsed)
             self._write_probes()
             if not self.world.alive:
                 return self._finish()
             return self._publish_observation()
+
+    def _write_memory(self, plan: Plan) -> None:
+        self._memory = season_memory(self._home_memory, plan)
+        if self._memory["wrote"] or self._memory["retrieved"]:
+            self.trace.write("memory", self.world.t, self._memory)
 
     async def next_observation(self) -> dict[str, Any] | None:
         if not self._pull:

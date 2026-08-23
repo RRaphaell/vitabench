@@ -108,7 +108,8 @@ def record_for(kind: str, probe: Probe, **over: Any) -> dict[str, Any]:
         "action": probe.action_taken or "",
         "ok": probe.passed,
         "passed": probe.passed,
-        "retrieved": (probe.plant_text or None) if kind == "result" else None,
+        "npc": probe.npc or "",
+        "retrieved": None,
         "label": label,
         "delay_seasons": probe.delay_seasons,
     }

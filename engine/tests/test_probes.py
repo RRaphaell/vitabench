@@ -98,7 +98,7 @@ def test_ledger_positive_plants_pays_and_passes(spec):
     assert result[0]["kind"] == "result"
     assert result[0]["ok"] is True and result[0]["passed"] is True
     assert probe.resolved is True and probe.passed is True and probe.action_taken == "pay"
-    assert result[0]["retrieved"] == probe.plant_text
+    assert result[0]["retrieved"] is None and result[0]["npc"] == probe.npc
     assert "remembered" in result[0]["label"]
 
 

@@ -12,9 +12,10 @@ from vitabench import frames
 from vitabench.adapters.base import scenario_brief
 from vitabench.schema import AnyFrame, Plan, Probe, ScenarioSpec
 from vitabench.scoring import score_run
-from vitabench.trace import TraceWriter, read_trace, write_frames_json
+from vitabench.trace import MemoryLog, TraceWriter, read_trace, write_frames_json
 
 TURN_TIMEOUT = 120.0
+MAX_MEMORY_LINES = 12
 PROBE_KINDS = {"plant": "probe_plant", "payoff": "probe_payoff", "result": "probe_result"}
 
 
@@ -59,43 +60,6 @@ def _plan_probes(spec: ScenarioSpec, persona: Any, seed: int) -> list[Probe]:
     return list(fn(**{n: supply[n] for n in params if n in supply}))
 
 
-def _probe_payload(probe: Probe, kind: str) -> dict[str, Any]:
-    from vitabench import probes as probes_module
-
-    over: dict[str, Any] = {}
-    if kind == "result":
-        over = {"action": probe.action_taken or "", "ok": probe.passed, "retrieved": probe.plant_text or None}
-    builder = getattr(probes_module, "record_for", None) or getattr(probes_module, "_record", None)
-    if builder is not None:
-        return builder(kind, probe, **over)
-    return {
-        "kind": kind,
-        "probe_id": probe.id,
-        "type": probe.type,
-        "delay_seasons": probe.delay_seasons,
-        "claim": probe.plant_text if kind == "plant" else probe.payoff_text,
-        "who": probe.npc or "",
-        "t": probe.plant_t if kind == "plant" else probe.payoff_t,
-        **over,
-    }
-
-
-def _probe_records(world: Any, seen: set[tuple[str, str]]) -> list[dict[str, Any]]:
-    out: list[dict[str, Any]] = []
-    for probe in world.probes:
-        stages = (
-            ("plant", probe.planted),
-            ("payoff", bool(probe.slots.get("payoff_delivered"))),
-            ("result", probe.resolved),
-        )
-        for kind, reached in stages:
-            key = (probe.id, kind)
-            if reached and key not in seen:
-                seen.add(key)
-                out.append(_probe_payload(probe, kind))
-    return out
-
-
 def build_world(spec: ScenarioSpec, persona_id: str, seed: int) -> Any:
     from vitabench.world import World
 
@@ -108,6 +72,21 @@ def build_world(spec: ScenarioSpec, persona_id: str, seed: int) -> Any:
 def _memory(agent: Any) -> dict[str, list[str]] | None:
     getter = getattr(agent, "memory", None)
     return getter() if callable(getter) else None
+
+
+def season_memory(agent: Any, plan: Plan, written: set[str]) -> dict[str, list[str]]:
+    base = _memory(agent) or {}
+    wrote = [str(line).strip() for line in base.get("wrote", []) if str(line).strip()]
+    retrieved = [str(line).strip() for line in base.get("retrieved", []) if str(line).strip()]
+    diary = plan.diary.strip()
+    if diary and diary not in wrote:
+        wrote.append(diary)
+    lines = getattr(agent, "memory_lines", None)
+    if callable(lines):
+        wrote += [line for line in lines() if line and line not in written and line not in wrote]
+    retrieved += [line.strip() for line in plan.recall if line.strip() and line.strip() not in retrieved]
+    written.update(wrote)
+    return {"wrote": wrote[:MAX_MEMORY_LINES], "retrieved": retrieved[:MAX_MEMORY_LINES]}
 
 
 def _act(
@@ -131,18 +110,23 @@ def _act(
         return Plan(), f"{type(exc).__name__}: {exc}"
 
 
-def _write_probe_or_event(
+def _write_probes(
     writer: TraceWriter,
-    payload: dict[str, Any],
-    t: int,
+    world: Any,
+    log: MemoryLog,
     emit: Callable[[AnyFrame], None],
 ) -> None:
-    kind = str(payload.get("kind", "event"))
-    trace_kind = PROBE_KINDS.get(kind, "event")
-    payload_t = int(payload.get("t", t))
-    writer.write(trace_kind, payload_t, payload)
-    if trace_kind != "event":
-        emit(frames.moment(payload, payload_t, trace_kind))
+    for payload in world.drain_probe_records():
+        kind = PROBE_KINDS.get(str(payload.get("kind", "")))
+        if kind is None:
+            continue
+        t = int(payload.get("t", world.t))
+        if kind != "probe_plant":
+            retrieved, source = log.resolve(t, str(payload.get("who") or ""), str(payload.get("npc") or ""))
+            payload["retrieved"] = retrieved
+            payload["retrieved_source"] = source
+        writer.write(kind, t, payload)
+        emit(frames.moment(payload, t, kind))
 
 
 def run_life(
@@ -174,13 +158,22 @@ def run_life(
     emit(hello)
     agent.on_birth(world.persona, scenario_brief(spec))
 
-    seen: set[tuple[str, str]] = set()
+    written: set[str] = set()
+    log = MemoryLog()
     pool = ThreadPoolExecutor(max_workers=1) if turn_timeout else None
     try:
         while world.alive and world.t < world.max_t:
             t = world.t
+            _write_probes(writer, world, log, emit)
             observation = world.observe()
-            season = frames.frame(world, _memory(agent))
+
+            started = time.perf_counter()
+            plan, error = _act(agent, observation, pool, turn_timeout)
+            wall_ms = int((time.perf_counter() - started) * 1000)
+            memory = season_memory(agent, plan, written)
+            log.add(t, memory["wrote"], memory["retrieved"])
+
+            season = frames.frame(world, memory)
             writer.write(
                 "observation",
                 t,
@@ -190,10 +183,8 @@ def run_life(
                 },
             )
             emit(season)
-
-            started = time.perf_counter()
-            plan, error = _act(agent, observation, pool, turn_timeout)
-            wall_ms = int((time.perf_counter() - started) * 1000)
+            if memory["wrote"] or memory["retrieved"]:
+                writer.write("memory", t, memory)
             if error:
                 writer.write("plan_invalid", t, {"error": error}, wall_ms=wall_ms)
             writer.write("plan", t, plan.model_dump(mode="json"), wall_ms=wall_ms)
@@ -201,16 +192,10 @@ def run_life(
             if usage is not None:
                 writer.write("llm", t, usage.model_dump(mode="json"), cost_usd=usage.cost_usd)
 
-            events = world.step_season(plan)
-            for event in events:
-                kind = str(event.get("kind", "event"))
-                if kind == "death":
-                    continue
-                if kind in PROBE_KINDS:
-                    seen.add((str(event.get("probe_id", "")), kind))
-                _write_probe_or_event(writer, event, t, emit)
-            for record in _probe_records(world, seen):
-                _write_probe_or_event(writer, record, t, emit)
+            for event in world.step_season(plan):
+                if str(event.get("kind", "event")) != "death":
+                    writer.write("event", int(event.get("t", t)), event)
+        _write_probes(writer, world, log, emit)
     finally:
         if pool is not None:
             pool.shutdown(wait=False)

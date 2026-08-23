@@ -14,7 +14,7 @@ from vitabench.runner.batch import LEADERBOARD_NAME
 from vitabench.runner.batch import batch as run_batch
 from vitabench.runner.life import TURN_TIMEOUT, run_life
 from vitabench.scenario import ScenarioError, load_scenario, validate_report
-from vitabench.scoring import aggregate, find_runs
+from vitabench.scoring import aggregate, find_runs, memory_table
 from vitabench.trace import read_trace, write_frames_json
 
 DEFAULT_SCENARIO = "scenarios/venice_1340"
@@ -124,6 +124,12 @@ def score(
         raise typer.Exit(code=1)
     leaderboard = aggregate(run_dirs)
     _print_leaderboard(leaderboard)
+    if leaderboard:
+        typer.echo("")
+        typer.echo(f"memory pass rate by delay · chance {leaderboard[0]['chance']} "
+                   f"from {leaderboard[0]['chance_source']}")
+        for line in memory_table(leaderboard):
+            typer.echo(line)
     target = Path(out) if out else Path(runs) / LEADERBOARD_NAME
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(leaderboard, indent=2), encoding="utf-8")
@@ -171,6 +177,39 @@ def serve(port: int = typer.Option(8700), host: str = typer.Option("127.0.0.1"))
     from vitabench.server.app import serve as serve_app
 
     serve_app(port=port, host=host)
+
+
+@app.command()
+def claude(
+    seed: int = typer.Option(1),
+    model: str = typer.Option("sonnet", help="sonnet | opus | any model the claude CLI accepts."),
+    out: str | None = typer.Option(None, help="Run directory; defaults to runs/claude_<model>_s<seed>."),
+    server: str = typer.Option("http://127.0.0.1:8700", help="A running `vitabench serve`."),
+    scenario: str = typer.Option(DEFAULT_SCENARIO),
+    persona: str | None = typer.Option(None),
+) -> None:
+    """Live one life with the Claude Code CLI against a running engine server."""
+    import asyncio
+
+    from vitabench.adapters.base import scenario_brief
+    from vitabench.adapters.claude_code import drive_life
+
+    spec = load_scenario(Path(scenario))
+    chosen = next((p for p in spec.personas if persona in (None, p.id)), None)
+    if chosen is None:
+        raise typer.BadParameter(f"persona {persona!r} not in {spec.id}")
+    run_dir = Path(out) if out else Path("runs") / f"claude_{model}_s{seed}"
+    result = asyncio.run(
+        drive_life(
+            server, run_dir, spec.id, chosen, scenario_brief(spec),
+            seed=seed, model=model, city=spec.city, year=spec.start_year,
+        )
+    )
+    typer.echo(
+        f"{result['run_id']} · {result['attempts']} claude attempts · ${result['cost_usd']:.4f} · "
+        f"{result['records']} trace records · home {result['home']}"
+    )
+    typer.echo(str(run_dir))
 
 
 def main() -> None:

@@ -8,16 +8,19 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel
 from starlette.staticfiles import StaticFiles
 
 from vitabench.server.live import ALIVE, REGISTRY, LiveUnavailable, frames_for, runs_root
 from vitabench.server.mcp import mcp_routes, mcp_server
+from vitabench.trace import read_meta
 
 log = logging.getLogger("vitabench.server")
 
 WEB_DIST = Path(__file__).resolve().parents[3] / "web" / "dist"
+LOCAL_ORIGIN = r"http://(localhost|127\.0\.0\.1)(:\d+)?"
 
 
 class RunRequest(BaseModel):
@@ -36,18 +39,54 @@ async def _lifespan(_app: FastAPI):
         yield
 
 
+def _recorded(name: str) -> Path | None:
+    path = runs_root() / name
+    pointer = path / "run_id"
+    if pointer.is_file():
+        target = (runs_root() / pointer.read_text(encoding="utf-8").strip())
+        if (target / "trace.jsonl").exists() and not (path / "trace.jsonl").exists():
+            path = target
+    if (path / "trace.jsonl").exists() or (path / "frames.json").exists():
+        return path
+    return None
+
+
+def _live(name: str) -> Any:
+    life = REGISTRY.get(name)
+    if life is not None:
+        return life
+    pointer = runs_root() / name / "run_id"
+    if pointer.is_file():
+        return REGISTRY.get(pointer.read_text(encoding="utf-8").strip())
+    return None
+
+
+def _frames_on_disk(run_dir: Path) -> list[dict[str, Any]]:
+    cached = run_dir / "frames.json"
+    if not (run_dir / "trace.jsonl").exists() and cached.exists():
+        return json.loads(cached.read_text(encoding="utf-8"))
+    return frames_for(run_dir)
+
+
 def _run_dir(run_id: str) -> Path:
-    life = REGISTRY.get(run_id)
+    life = _live(run_id)
     if life is not None:
         return life.run_dir
-    path = runs_root() / run_id
-    if not (path / "trace.jsonl").exists():
+    path = _recorded(run_id)
+    if path is None:
         raise HTTPException(404, f"no trace for run {run_id}")
     return path
 
 
 def create_app() -> FastAPI:
     app = FastAPI(title="vitabench", version="0.1.0", lifespan=_lifespan)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origin_regex=LOCAL_ORIGIN,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     @app.post("/runs")
     async def create_run(body: RunRequest) -> dict[str, Any]:
@@ -82,13 +121,17 @@ def create_app() -> FastAPI:
 
     @app.get("/runs/{run_id}")
     def run_info(run_id: str) -> dict[str, Any]:
-        life = REGISTRY.get(run_id)
+        life = _live(run_id)
         if life is not None:
             return life.info()
         for row in REGISTRY.listing():
             if row["run_id"] == run_id:
                 return row
-        raise HTTPException(404, f"no such run {run_id}")
+        path = _recorded(run_id)
+        if path is None:
+            raise HTTPException(404, f"no such run {run_id}")
+        return {"run_id": run_id, "status": "recorded", "live": False,
+                "run_dir": str(path), **read_meta(path)}
 
     @app.post("/runs/{run_id}/llm")
     def record_llm(run_id: str, record: dict[str, Any]) -> dict[str, Any]:
@@ -100,23 +143,29 @@ def create_app() -> FastAPI:
 
     @app.get("/runs/{run_id}/trace", response_class=PlainTextResponse)
     def run_trace(run_id: str) -> str:
-        return (_run_dir(run_id) / "trace.jsonl").read_text(encoding="utf-8")
+        path = _run_dir(run_id) / "trace.jsonl"
+        if not path.exists():
+            raise HTTPException(404, f"no trace for run {run_id}")
+        return path.read_text(encoding="utf-8")
 
     @app.get("/runs/{run_id}/frames")
     def run_frames(run_id: str) -> list[dict[str, Any]]:
-        life = REGISTRY.get(run_id)
+        life = _live(run_id)
         if life is not None and life.frames:
             return life.frames
-        return frames_for(_run_dir(run_id))
+        return _frames_on_disk(_run_dir(run_id))
 
     @app.websocket("/ws/{run_id}")
     async def ws(socket: WebSocket, run_id: str) -> None:
         await socket.accept()
-        life = REGISTRY.get(run_id)
+        life = _live(run_id)
         if life is None:
+            recorded = _recorded(run_id)
             try:
-                frames = frames_for(runs_root() / run_id)
-            except (FileNotFoundError, ValueError):
+                frames = _frames_on_disk(recorded) if recorded else []
+            except (FileNotFoundError, ValueError, json.JSONDecodeError):
+                frames = []
+            if not frames:
                 await socket.send_json({"type": "error", "message": f"no such run {run_id}"})
                 await socket.close()
                 return

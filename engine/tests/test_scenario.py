@@ -64,7 +64,7 @@ def test_history_events(spec):
     by_id = {event.id: event for event in spec.events}
     plague = by_id["black_death"]
     assert plague.year == 1348 and plague.kind == "plague" and plague.duration_seasons == 4
-    assert plague.effects["illness_mult"] == 12
+    assert plague.effects["illness_mult"] == 8
     assert plague.effects["npc_death_rate"] == pytest.approx(0.35)
     war = by_id["chioggia"]
     assert war.year == 1378 and war.kind == "war" and war.duration_seasons == 13

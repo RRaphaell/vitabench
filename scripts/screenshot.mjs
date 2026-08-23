@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { createRequire } from 'node:module';
 import { basename, dirname, resolve } from 'node:path';
@@ -10,7 +10,6 @@ const { chromium } = require('/Users/raphaelkalandadze/.hermes/hermes-agent/node
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const WEB = resolve(HERE, '../web');
-const SEASONS = [0, 34, 126, 172];
 const runDir = resolve(process.cwd(), process.argv[2] ?? '../runs/demo');
 const baseUrl = process.argv[3] ?? 'http://localhost:5173';
 const runId = basename(runDir);
@@ -59,6 +58,18 @@ if (!(await servesViewer(origin))) {
   }
 }
 
+const frames = JSON.parse(readFileSync(resolve(runDir, 'frames.json'), 'utf8'));
+const rows = Array.isArray(frames) ? frames : (frames.frames ?? []);
+const payoff = rows.find((f) => f.type === 'moment' && f.kind !== 'plant');
+const end = rows.find((f) => f.type === 'end');
+const shots = [
+  ['t0', 0],
+  ['follow_12', 12],
+  ['t34', 34],
+  [`t${payoff ? payoff.t : 126}`, payoff ? payoff.t : 126],
+  [`t${end ? end.t : 172}`, end ? end.t : 172],
+];
+
 const outDir = resolve(runDir, 'screens');
 mkdirSync(outDir, { recursive: true });
 
@@ -71,11 +82,12 @@ page.on('console', (msg) => {
 });
 page.on('pageerror', (err) => console.log(`  [page error] ${err.message}`));
 
-for (const t of SEASONS) {
-  await page.goto(`${origin}/?run=${runId}&t=${t}`, { waitUntil: 'load' });
+for (const [name, t] of shots) {
+  const overview = name === 't34' ? '&view=overview' : '';
+  await page.goto(`${origin}/?run=${runId}&t=${t}${overview}`, { waitUntil: 'load' });
   await page.waitForFunction('window.vitabenchFrames > 60', null, { timeout: 40000 }).catch(() => {});
-  await page.waitForTimeout(5000);
-  const file = resolve(outDir, `t${t}.png`);
+  await page.waitForTimeout(6000);
+  const file = resolve(outDir, `${name}.png`);
   await page.screenshot({ path: file });
   console.log(`saved ${file}`);
 }

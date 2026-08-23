@@ -11,6 +11,9 @@ from vitabench.trace import read_meta, read_trace
 
 CHANCE_DEFAULT = 0.33
 DELAY_BUCKETS = (1, 4, 40, 100)
+BUCKET_LABELS = {1: "1 season", 4: "1 year", 40: "10 years", 100: "25 years"}
+RANDOM_HARNESS = "mock:random"
+MIN_CHANCE_PROBES = 8
 WEALTH_REF = 500.0
 BOOTSTRAP_RESAMPLES = 2000
 WEIGHTS = {"M": 0.55, "N": 0.25, "L": 0.20}
@@ -125,14 +128,51 @@ def _bootstrap_ci(values: Sequence[float], seed: int = 0) -> list[float]:
     return [round(float(lo), 4), round(float(hi), 4)]
 
 
-def _mean_by_delay(entries: Sequence[dict[str, Any]]) -> dict[str, float]:
+def _mean_by_delay(entries: Sequence[dict[str, Any]], field: str = "M_by_delay") -> dict[str, float]:
     out: dict[str, float] = {}
     for bucket in DELAY_BUCKETS:
         key = str(bucket)
-        vals = [e["M_by_delay"][key] for e in entries if key in e.get("M_by_delay", {})]
+        vals = [e[field][key] for e in entries if key in e.get(field, {})]
         if vals:
             out[key] = round(float(np.mean(vals)), 4)
     return out
+
+
+def chance_from_scores(scored: Sequence[dict[str, Any]]) -> tuple[float, str]:
+    hits = sum(e["memory"]["x"] for e in scored if e.get("harness") == RANDOM_HARNESS)
+    total = sum(e["memory"]["y"] for e in scored if e.get("harness") == RANDOM_HARNESS)
+    if total >= MIN_CHANCE_PROBES:
+        return round(hits / total, 4), f"{RANDOM_HARNESS} ({hits}/{total} probes)"
+    if total:
+        return CHANCE_DEFAULT, f"default ({total} {RANDOM_HARNESS} probes, need {MIN_CHANCE_PROBES})"
+    return CHANCE_DEFAULT, f"default (no {RANDOM_HARNESS} runs here)"
+
+
+def _rescore(entry: dict[str, Any], chance: float) -> None:
+    raw = entry.get("M_raw_by_delay") or {}
+    by_delay = {key: round(_corrected(rate, chance), 4) for key, rate in raw.items()}
+    m = round(float(np.mean(list(by_delay.values()))) if by_delay else 0.0, 4)
+    entry["M_by_delay"] = by_delay
+    entry["M"] = m
+    entry["chance"] = chance
+    entry["H"] = round(WEIGHTS["M"] * m + WEIGHTS["N"] * entry["N"] + WEIGHTS["L"] * entry["L"], 4)
+
+
+def memory_table(rows: Sequence[dict[str, Any]]) -> list[str]:
+    heads = "".join(f"{BUCKET_LABELS[b]:>10}" for b in DELAY_BUCKETS)
+    header = f"{'harness':<16}{'model':<18}{heads}{'M':>8}{'negatives':>12}"
+    lines = [header, "-" * len(header)]
+    for row in rows:
+        raw = row.get("M_raw_by_delay") or {}
+        cells = "".join(
+            f"{raw[str(b)]:>10.2f}" if str(b) in raw else f"{'—':>10}" for b in DELAY_BUCKETS
+        )
+        neg = row.get("negatives") or {"x": 0, "y": 0}
+        lines.append(
+            f"{row['harness']:<16}{row['model']:<18}{cells}{row['M']:>8.3f}"
+            + f"{neg['x']}/{neg['y']}".rjust(12)
+        )
+    return lines
 
 
 def score_dir(run_dir: str | Path) -> dict[str, Any]:
@@ -154,8 +194,13 @@ def find_runs(root: str | Path) -> list[Path]:
     return sorted(p.parent for p in root.rglob("trace.jsonl"))
 
 
-def aggregate(run_dirs: Iterable[str | Path]) -> list[dict[str, Any]]:
+def aggregate(run_dirs: Iterable[str | Path], chance: float | None = None) -> list[dict[str, Any]]:
     scored = [score_dir(d) for d in run_dirs]
+    source = "given"
+    if chance is None:
+        chance, source = chance_from_scores(scored)
+    for entry in scored:
+        _rescore(entry, chance)
     groups: dict[tuple[str, str], list[dict[str, Any]]] = {}
     for entry in scored:
         groups.setdefault((entry["harness"], entry["model"]), []).append(entry)
@@ -169,6 +214,13 @@ def aggregate(run_dirs: Iterable[str | Path]) -> list[dict[str, Any]]:
             "H": round(float(np.mean([e["H"] for e in entries])), 4),
             "M": round(float(np.mean([e["M"] for e in entries])), 4),
             "M_by_delay": _mean_by_delay(entries),
+            "M_raw_by_delay": _mean_by_delay(entries, "M_raw_by_delay"),
+            "negatives": {
+                "x": sum(e["negatives"]["x"] for e in entries),
+                "y": sum(e["negatives"]["y"] for e in entries),
+            },
+            "chance": chance,
+            "chance_source": source,
             "N": round(float(np.mean([e["N"] for e in entries])), 4),
             "L": round(float(np.mean([e["L"] for e in entries])), 4),
             "cost_usd": round(float(np.mean([e["cost_usd"] for e in entries])), 6),

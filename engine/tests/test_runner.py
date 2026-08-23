@@ -180,6 +180,49 @@ def test_full_life_runs_and_scores(tmp_path: Path, policy: str) -> None:
     assert {"birth", "observation", "plan", "death", "score"} <= kinds
 
 
+def test_probe_and_memory_records_reach_frames(tmp_path: Path) -> None:
+    pytest.importorskip("vitabench.world")
+    if not (SCENARIO_DIR / "scenario.yaml").exists():
+        pytest.skip("scenario venice_1340 not available yet")
+    from vitabench.runner.life import run_life
+    from vitabench.scenario import load_scenario
+    from vitabench.trace import hello_from_trace
+
+    spec = load_scenario(SCENARIO_DIR)
+    result = run_life(
+        spec, "marco", 1, MockAgent("sensible", seed=1), tmp_path / "run",
+        harness_name="mock:sensible", model_name="mock",
+    )
+    records = read_trace(result.run_dir)
+    kinds = [r.kind for r in records]
+    assert {"probe_plant", "probe_payoff", "probe_result", "memory"} <= set(kinds)
+    plants = [r for r in records if r.kind == "probe_plant"]
+    fields = {"probe_id", "who", "role", "claim", "delay_seasons", "label"}
+    assert all(fields <= set(r.payload) for r in plants)
+    results = [r for r in records if r.kind == "probe_result"]
+    assert results and all(r.payload["t"] == r.t for r in results)
+    assert any(r.payload.get("retrieved_source") in ("recall", "diary") for r in results)
+
+    memories = [r for r in records if r.kind == "memory"]
+    assert memories and all(m.payload["wrote"] or m.payload["retrieved"] for m in memories)
+    frames = frames_from_trace(records, hello_from_trace(records))
+    seasons = [f for f in frames if f.type == "frame"]
+    assert sum(1 for f in seasons if f.memory.wrote) == len(memories)
+    moments = [f for f in frames if f.type == "moment" and f.kind != "plant"]
+    assert any(m.retrieved for m in moments)
+
+
+def test_memory_lines_and_recall_come_from_the_mock_agent() -> None:
+    agent = MockAgent("sensible", seed=1)
+    agent.on_birth(PERSONA, "Venice, 1340.")
+    agent.act(observation(1, visitors=[plant_visitor()]))
+    assert any("30 ducats" in line for line in agent.memory_lines())
+    plan = agent.act(observation(101, visitors=[payoff_visitor()]))
+    assert plan.recall and any("30 ducats" in line for line in plan.recall)
+    assert plan.diary
+    assert MockAgent("goldfish", seed=1).memory_lines() == []
+
+
 class StubBlock:
     def __init__(self, name: str, payload: dict) -> None:
         self.type = "tool_use"

@@ -3,10 +3,10 @@
 ## Status board
 | Workstream | Owner | State | Last verified |
 |---|---|---|---|
-| W1 engine core | W1 agent | working: world/clock/npcs/director/dialogue + tests green | 17:15 |
+| W1 engine core | W1 agent / E1 | working: world/clock/npcs/director/dialogue; wave 2 splits `economy.py` out of `world.py` (295 lines) and collects probe records | 18:05 |
 | W2 scenario + probes | W2 | scenario + probes done, wired into W1/W3 | 17:10 |
-| W3 adapters/runner/trace/scoring | W3 agent | working: trace/scoring/frames/runner/CLI + mock & API adapters, 17 tests green | 17:55 |
-| W4 server | agent-w4 | live: HTTP + MCP + WS + Claude Code adapter verified against real `claude` CLI | 17:20 |
+| W3 adapters/runner/trace/scoring | W3 agent / E1 | working: trace/scoring/frames/runner/CLI + mock & API adapters; wave 2 adds probe_* + memory trace records, MomentFrame.retrieved, memory-by-delay table; 63 tests green | 18:05 |
+| W4 server | agent-w4 / E2 | live: HTTP + MCP + WS + Claude Code adapter; wave 2 adds memory diffing, live probe records, static run dirs, `vitabench claude`, 5 server tests | 17:21 |
 | W5 viewer world | W5 | diorama renders (island, canals, 3 kits, props, day/night, plague/war) | 17:15 |
 | W6 viewer actors + camera | W6 agent | working: characters/path/people/hero/camera/effects + ?dev=actors demo, screenshot green | 17:20 |
 | W7 viewer UI + state | W7 agent | working: store/replayer/transport, full HUD, moments, timeline, fixture, screenshots | 17:45 |
@@ -18,9 +18,87 @@
 - 16:40 Agents do not commit; orchestrator commits after each wave.
 
 ## Orchestrator log
+- 17:44 **World v1.** Found the plague double-count (event price_mult 1.8 × index 1.9 ≈ 3.4× food): 5 of 6 Sonnet lives on v0 died at 31 in 1349 (illness/starvation) while the scripted baseline survived every seed. Fixed events.yaml (black_death illness_mult 12→8, price_mult 1.8→1.25). v0 runs archived under runs/v0/ (kept for honesty: v0 board had Claude Code n=4 H=0.60 [0.47,0.77], M 0.52, N 3/3, $3.26/life). Baselines re-run on v1 (n=6): sensible 0.598, random 0.378, goldfish 0.287. Six Claude Code lives (seeds 0–5, sonnet) launched in parallel on v1 at 17:44.
+- 17:35 Cost records: the Claude adapter returns usage but did not write an `llm` trace record; injected from logs for v0 runs (E2 now writes live).
+- 17:33 Demo candidate: v0 seed 1 — lived to 63, bankrupted by the War of Chioggia (theft, fire, trade collapse) and starved; memory 3/8, negatives 3/3; memory.md shows the agent generalizing "the Vialli family runs recurring cons → refuse". Will be replaced by the best v1 life if one survives.
+- 17:08 Wave 2 launched (E1 engine integration, E2 server memory diffing, V1 viewer polish). Wave 1 committed at 17:05 (91b227b). Screenshots reviewed: diorama + UI pass J1/J2; fixture was replayed (engine not running) — fixed by E2/V1.
 - 16:40 Docs 00–08 written, repo skeleton next.
 
 ## W1 engine core
+
+### wave 2 (E1) — probe records, memory lines, economy split, memory table
+
+**Probe records are live (for E2 / `server/live.py`).** `World` now keeps every record returned by
+`probes.plant_due/payoff_due/check_due`:
+- attribute `world.probe_records: list[dict]` (appended in season order: results of the season just
+  stepped, then the plants/payoffs that come due in the next season);
+- `world.drain_probe_records() -> list[dict]` returns them and clears the list.
+`step_season()` still returns only the world event dicts, unchanged. The names match the hooks
+`server/harvest.py` already probes for, so `harvest.season_probes(world, state)` picks the live path up
+with no change on the server side.
+
+Each record is `probes.record_for(...)`:
+`{kind: plant|payoff|result, moment_kind: plant|payoff|negative, probe_id, template_id, type, t, who
+(display name), npc (npc id), role, claim (plant_text | payoff_text), action, ok, passed, retrieved,
+retrieved_source, label, delay_seasons}` plus `channel` on plant/payoff. `t` is the season the record
+belongs to (plant_t / payoff_t), and the runner writes the trace record at that `t`.
+`record_for` no longer puts `plant_text` in `retrieved` — `retrieved` is what the *harness* recalled.
+
+**Memory lines.** `runner/life.py::season_memory(agent, plan, written)` runs after the plan comes back:
+`wrote = agent.memory()["wrote"] (notes harness) + plan.diary + new agent.memory_lines()`,
+`retrieved = agent.memory()["retrieved"] + plan.recall`, both capped at 12 lines. It is stored in
+`Frame.memory` on the observation record's `payload.frame` **and** as a `memory` trace record
+(`{wrote, retrieved}` at that season's `t`). `MockAgent` gained `memory_lines()` (its last 6 tracked
+facts) and now fills `Plan.recall` with the fact lines it actually matched, so mock runs show a real
+memory strip and real retrievals. `World.memory_lines` also collects the diary, so `relations[].agent`
+is no longer always false.
+
+`frames_from_trace` rebuilds `Frame.memory` from the `memory` records (they win over whatever the
+observation frame carried) and fills `MomentFrame.retrieved` through `trace.MemoryLog`:
+`plan.recall` of the payoff season when non-empty (`retrieved_source: "recall"`), else the most recent
+diary/memory line mentioning the visitor name or npc id (`"diary"`), else `null`. `retrieved_source`
+lives in the trace payload only — `MomentFrame` is unchanged.
+
+**`world.py` split.** Economy and needs moved to `engine/vitabench/economy.py` (prices, wages, eat/rest/
+move/idle weeks, hunger+illness tick, clamp, health cap, mortality hazard, buys, debt settle, job
+requirements, goal checks, `run_weeks`). `world.py` 416 → 295 lines, `economy.py` 219. Behaviour is
+byte-identical: the 13 illness draws are taken from the same stream in the same order, and a fresh
+seed-1 life produces observation payloads identical to the pre-split `runs/smoke`.
+
+**`vitabench score`** now prints a second table: raw memory pass rate per delay bucket
+(1 season / 1 year / 10 years / 25 years — 100 seasons is 25 years, not 30) plus negatives x/y per
+harness, and it chance-corrects `M` from any `mock:random` runs in the same runs dir
+(`scoring.chance_from_scores`, needs ≥ 8 resolved random probes, else 0.33). The header says which:
+`memory pass rate by delay · chance 0.33 from default (2 mock:random probes, need 8)`.
+
+Not done / notes:
+- `mock:random` lives die young, so a useful chance estimate needs several random seeds; with one seed
+  the guard falls back to 0.33 rather than reporting a degenerate chance of 1.0.
+- The season frame is now written *after* the agent turn (it needs that turn's memory). Live streaming
+  through `on_frame` therefore emits the frame one agent-latency later; `server/live.py` has its own
+  loop and is unaffected.
+- Quiz probes still never reach `questions[]`, so `quiz` counts stay 0/0.
+
+Verify (`cd engine`):
+```
+$ uv run ruff check . && uv run pytest -q && uv run vitabench run --scenario scenarios/venice_1340 \
+    --persona marco --seed 1 --agent mock --out ../runs/smoke2 && python3 -c "import json;fr=json.load(open('../runs/smoke2/frames.json'));print(sum(1 for f in fr if f['type']=='frame' and f['memory']['wrote']), 'frames with memory;', [ (m['t'],m['kind'],m['ok'],m['retrieved'] is not None) for m in fr if m['type']=='moment'][:8])"
+All checks passed!
+...............................................................          [100%]
+63 passed in 1.74s
+venice_1340/marco seed=1 harness=mock:sensible → died at 62 of outlived the scenario after 160 seasons
+H=0.5288 M=0.4403 (memory 5/8) N=0.6667 (negatives 2/3) L=0.6 cost=$0.0
+../runs/smoke2
+160 frames with memory; [(12, 'plant', None, False), (14, 'plant', None, False), (15, 'payoff', True, True), (19, 'plant', None, False), (28, 'plant', None, False), (30, 'plant', None, False), (49, 'plant', None, False), (50, 'payoff', False, True)]
+
+$ uv run vitabench score <dir with mock:random + mock:sensible + mock:goldfish>
+memory pass rate by delay · chance 0.33 from default (2 mock:random probes, need 8)
+harness         model               1 season    1 year  10 years  25 years       M   negatives
+----------------------------------------------------------------------------------------------
+mock:sensible   mock                    0.50      0.50      1.00      0.50   0.440         3/3
+mock:random     mock                       —      0.50         —         —   0.250         0/0
+mock:goldfish   mock                    0.00      0.00      0.00      0.00   0.000         2/3
+```
 
 ### 17:15 — done (F2, F3, F4, F5, F6; supports F7/F8)
 - `clock.py` — season/year/age helpers over `SEASONS`/`WEEKS_PER_SEASON`, plus `interpolate_index()` for `price_index`.
@@ -167,6 +245,9 @@ p_10 negative passed=True  refuse     refused · 25 years
 
 ## W3 adapters / runner / trace / scoring
 
+### wave 2 (E1)
+- `runner/life.py`, `trace.py`, `scoring.py`, `adapters/mock.py` and `cli.py score` changed with the probe/memory work — see **W1 engine core → wave 2 (E1)** for the record shapes, the `memory` trace record and the new memory-by-delay table.
+
 ### 17:55 — working end to end (F8, F9 partial, F10, F11, F14; feeds F12/F13/F15)
 - `trace.py` — `TraceWriter(run_dir, run_id=None)`: auto `seq`, `run_id`, one flushed JSONL line per record, `write_meta(**fields)` → `meta.json` (scenario, persona, seed, harness, model, started, probes). `read_trace`, `read_meta`, `hello_from_trace`, `frames_from_trace(records, hello)` (one `Frame` per `observation` record from `payload["frame"]`, a `MomentFrame` per `probe_*` record, `end` from `death` + `score`), `write_frames_json(run_dir)` → `frames.json` = `[hello, …frames/moments in trace order, end]`. `moment_from_payload()` is the single payload→moment mapping, reused by `frames.moment()`.
 - `frames.py` — **W3 owns it per `docs/04_WORKFLOW.md`** (W1 confirmed, see their note). `hello(world, run_id, harness, model, seed=None)`, `frame(world, memory=None)`, `moment(payload, t, kind)`, `end(world, scores=None, cost_usd=0.0)`. Signatures are compatible with W4's `_resolve(...)` lookups in `server/live.py` (`hello`/`frame`/`end`, keyword `harness`/`model`/`run_id`/`cost_usd`).
@@ -218,6 +299,93 @@ runs/smoke_sensible/frames.json - end 1 - frame 160 - hello 1 - moment 22
 trace: birth 1 - death 1 - event 39 - observation 160 - plan 160 - probe_payoff 11 - probe_plant 11 - probe_result 11 - score 1
 ```
 ## W4 server
+
+### wave 2 (E2) — 17:21 — Claude memory diffing, live probe records, static runs, `vitabench claude`, server tests
+- **`server/harvest.py` (new, 130 lines)** — everything a season yields outside the world model.
+  - `HomeMemory(home)` reads `<home>/memory.md` plus every `*.md` under the Claude auto-memory dir for that
+    home (`$CLAUDE_CONFIG_DIR|~/.claude/projects/<path-with-slashes-as-dashes>/memory/`), `<home>/.claude/memory/`
+    and `<home>/memory/`; `harvest()` returns only lines unseen in previous snapshots (bullets/#/> stripped,
+    lines < 4 chars dropped, ≤ 12 per season).
+  - `season_memory(harvester, plan)` = `{wrote, retrieved, source}`: home lines + `plan.diary` -> `wrote`,
+    `plan.recall` -> `retrieved`, `source ∈ {claude-home, diary, recall}`.
+  - `season_probes(world, state)` prefers **W1's new `world.drain_probe_records()`** (also accepts
+    `drain_records()` / `season_probe_records` / `probe_records` lists, dicts, `(kind, payload)` pairs or pydantic
+    models) and normalizes W2's `kind ∈ {plant, payoff, result}` to `probe_plant|probe_payoff|probe_result`.
+    The old flag-diff over `probe.planted/resolved` is kept as the fallback when a world exposes no records.
+- **`LiveLife`**: writes a `memory` record `{t, payload:{wrote, retrieved, source}}` after every `act()`
+  (right before the observation record it belongs to, `t` = the new season, so a sequential *or* t-keyed reader
+  in `frames_from_trace` lands it on the right frame), and passes `{wrote, retrieved}` into
+  `frames.frame(world, memory)` so the broadcast Frame, `/runs/{id}/frames` and the WS stream all carry it.
+  `MemoryFrame` is `extra="forbid"`, so `source` is trace-only.
+- **Home is discoverable from the run**: `LiveLife.home` = `adapters.claude_code.home_for(run_id)`
+  (`$VITABENCH_HOME_ROOT` or `~/.vitabench/homes`), returned by `GET /runs/{id}` as `home` and written into
+  `meta.json`. `ClaudeCodeAgent` uses the same resolver, so server and adapter always agree.
+- **Probe records live**: `probe_plant`/`probe_payoff`/`probe_result` trace records + MomentFrames are now
+  emitted in real time from W2's records (previously only plant/result, recovered by flag diffing). A full mock
+  life: `probe_plant 8 · probe_payoff 11 · probe_result 11`, moments `plant 8 · payoff 16 · negative 6`.
+- **Static runs on disk**: `/runs/{name}/frames`, `/runs/{name}/trace` and `/runs/{name}` resolve a directory
+  `runs/<name>/` (`trace.jsonl`, or `frames.json` alone), and follow a `runs/<name>/run_id` pointer file to the
+  live registry id or to the real run dir — so `runs/claude_sonnet_s1/` (which holds only `run_id`) serves the
+  live Claude life's frames. `/runs/leaderboard.json` unchanged (serves `<repo>/runs/leaderboard.json`).
+- **CORS** added for any localhost/127.0.0.1 origin (regex), which covers the vite dev server on :5173.
+- **`vitabench claude --seed N --model sonnet|opus --out runs/<name> [--server ...] [--scenario] [--persona]`**
+  creates the run over HTTP, drives it with `ClaudeCodeAgent`, then saves `trace.jsonl` + `frames.json` + `run_id`
+  into the out dir (`adapters/claude_code.create_run/save_run/drive_life`). `scripts/claude_life.sh` still takes
+  `<seed> <model> <name>` (env `SERVER`) and is now a 7-line wrapper around that command — one implementation.
+- **`tests/test_server.py` (new, 5 tests, 0.7 s, no network)**: httpx `ASGITransport` for HTTP,
+  starlette `TestClient` for the WS; mock life via `start_mock`; frames/trace/memory records; on-disk run dirs
+  (copied trace, frames.json-only dir, leaderboard, 404); CORS preflight + WS hello/backlog/pong; claude-home
+  memory diff end to end (home file -> `source: claude-home` -> frame + meta.json).
+- **Not done / notes**: `POST /runs/{id}/llm` is still unauthenticated (localhost only); the quiz (`questions[]`)
+  probe channel is still unused; `runs/smoke` was recorded before this wave so its frames carry empty memory —
+  re-record it (or any run) to see memory in the viewer.
+- **Heads-up for W1/W2**: while running `ruff check --fix .` at repo scope I clobbered three imports in your
+  in-flight `vitabench/economy.py` (`Any`, `WEEKS_PER_SEASON`, `Persona`); I restored them immediately and ruff is
+  clean. Sorry — I now scope ruff to my own paths. At the time of my last full run, `tests/test_probes.py::
+  test_ledger_positive_plants_pays_and_passes` fails on `result[0]["retrieved"] is None` (W2's record builder sets
+  `retrieved: None`); that is your in-flight work, not this wave — everything else is green (58 passed).
+
+### Verify (wave 2)
+```
+cd engine && uv run ruff check . && uv run pytest -q tests/test_server.py
+uv run uvicorn vitabench.server.app:app --port 8701 &        # 8700 is the demo server, do not touch
+curl -s localhost:8701/runs/smoke/frames | head -c 200 ; curl -s localhost:8701/runs/leaderboard.json
+PATH=<fake-claude>:$PATH uv run vitabench claude --seed 7 --server http://127.0.0.1:8702 --out /tmp/cli_check
+```
+```
+$ uv run ruff check .
+All checks passed!
+
+$ uv run pytest -q tests/test_server.py
+.....                                                                    [100%]
+5 passed in 0.72s
+
+$ curl -s localhost:8701/runs/smoke/frames | (count by type)
+frames 181 {'hello': 1, 'frame': 160, 'moment': 19, 'end': 1}
+hello r_1022cd | first frame Spring 1340 | memory {'wrote': [], 'retrieved': []}
+
+$ curl -s localhost:8701/runs/leaderboard.json | head -c 220
+[{"harness":"mock:sensible","model":"mock","n":5,"seeds":[0,1,2,3,4],"H":0.5955,"M":0.4403,
+  "M_by_delay":{"1":0.2537,"4":0.2537,"40":1.0,"100":0.2537},"N":0.9333,"L":0.6,"cost_usd":0.0,...
+
+$ curl -s -D- -o /dev/null -H "Origin: http://localhost:5173" localhost:8701/runs | grep -i allow-origin
+access-control-allow-origin: http://localhost:5173
+
+$ curl -s -o /dev/null -w "%{http_code}" localhost:8701/runs/claude_sonnet_s1/frames   # run_id pointer file
+200
+
+$ full mock life through LiveLife (VITABENCH_RUNS=$TMP)
+trace: {'birth': 1, 'observation': 224, 'plan': 224, 'memory': 224, 'event': 40,
+        'probe_plant': 8, 'probe_payoff': 11, 'probe_result': 11, 'death': 1, 'score': 1}
+frames: {'hello': 1, 'frame': 224, 'moment': 30, 'end': 1}
+memory sample: {"wrote": ["Spring 1340: worked."], "retrieved": [], "source": "diary"}
+
+$ vitabench claude --seed 7 --server http://127.0.0.1:8702 (fake `claude` on PATH, no network)
+r_690e89 · 4 claude attempts · $0.0400 · 6 trace records · home .../homes/r_690e89
+saved: trace.jsonl frames.json run_id
+$ SERVER=http://127.0.0.1:8702 scripts/claude_life.sh 8 sonnet e2_shell_check
+r_c893ff · 4 claude attempts · $0.0400 · 6 trace records
+```
 - 17:20 **Done (F12, F9-claude, J6).** `server/live.py` (LiveLife + Registry), `server/mcp.py` (MCP over streamable HTTP), `server/app.py` (FastAPI + WS + static), `adapters/claude_code.py` (ClaudeCodeAgent). All four ruff-clean, each < 300 lines.
 - **The streamable-HTTP mount works — no stdio shim needed.** Installed `mcp` is **2.0.0**, where `FastMCP` is now `mcp.server.MCPServer`; `mcp.server.fastmcp` does not exist. `MCPServer.streamable_http_app(streamable_http_path="/mcp", stateless_http=True, json_response=True)` returns a Starlette app; its `Route` objects are grafted straight into the FastAPI router (`app.router.routes.insert(0, route)`) instead of `app.mount()`, so `POST /mcp` needs no trailing-slash redirect. FastAPI's lifespan runs `mcp_server.session_manager.run()`. DNS-rebinding protection is disabled explicitly so any Host works.
 - **One MCP endpoint for all runs.** The run id comes from `?run=<run_id>` on the MCP url (or the `x-vitabench-run` header); a small ASGI wrapper (`mcp.RunScope`) binds it to a `ContextVar` that the tools read. With exactly one live run, the run id may be omitted. Tools: `act(plan: dict) -> dict` and `status() -> dict`.
@@ -310,6 +478,8 @@ chars/character-male-a                 0.767 x 0.671 x 0.340
 ```
 ## W6 viewer actors + camera
 
+- wave 2 (V1) edited `actors/{camera,hero,people,effects}.ts`: follow-first camera with eased zoom/pitch + `focus`/`pushOverview`, hero on render layer 1 for the occluded-silhouette pass, plague crowd thinning + death sink-fade, `talkingAnchor()`, plague district ring. Details in the W7 wave 2 entry.
+
 ### 17:20 — actors, camera, effects, dev demo (F13, J2, N2, N4)
 Done, all inside `web/src/actors/*` + `web/src/dev/actors_demo.ts` (nothing else touched):
 - `actors/characters.ts` — loads the 12 Mini Characters GLBs (`/assets/chars/Models/GLB format/character-{male,female}-{a..f}.glb`), `SkeletonUtils.clone` per instance, `AnimationMixer` per instance, `playClip(name, fade)` with crossfade (`idle|walk|sprint|sit|die`; `die` is LoopOnce + clamped). Clip names are logged once at load. Role accent tints one shared `MeshStandardMaterial` per class (noble crimson `#a8283a`, merchant blue `#3f6fc4`, clergy black `#2a2d34`, poor brown `#7c5a38`, hero gold `#d9a441`, commoner stone) — 6 materials total, not one per person. `sharedCharacters()` loads the 12 GLBs once for people + hero.
@@ -355,6 +525,45 @@ if (new URLSearchParams(location.search).get('dev') === 'actors') {
 3. W5 — no interface change needed; `web/src/world/types.ts` matches what `actors/types.ts` declares.
 
 ## W7 viewer UI + state
+
+### wave 2 — 17:45 viewer polish (V1; covers all of `web/src`, `scripts/screenshot.mjs`, `web/vite.config.ts`)
+**Real runs.** `web/vite.config.ts` serves the repo's `runs/` through a plugin in both `vite dev` and `vite preview` (`/runs/<name>/frames.json`, plus `/runs/index.json` listing every run dir that has a `frames.json`, newest first). `main.ts` tries `/runs/<run>/frames.json` then `http://localhost:8700/runs/<run>/frames`; with no `?run=` it tries `demo` then the newest run from the index. The fixture fallback is gone — `dev/fixtures/{stage,fallback_stage}.ts` deleted, composition moved to `web/src/stage.ts`; `demo_frames.json` stays only as `make_fixture.mjs` output. If nothing loads the page says so instead of faking a life.
+
+**Hero visible at all times.** Camera starts in `follow` (half 9, pitch 42 deg; `Tab` -> overview at half 14, pitch 35, both eased); a big event (plague/war/flood/politics) calls `pushOverview(4)`; a moment sets `focus()` on the hero/visitor midpoint and pulls the zoom back in. The real problem was occlusion: at street level Marco is behind a facade most of the time. Fix in `stage.ts`: the hero group also lives on layer 1 and gets a **second render pass with `depthFunc: GreaterDepth`, gold, 50% opacity** — only his *occluded* fragments draw, so he reads as a gold silhouette through the roof, with the ground ring (`depthTest: false`) and the thought bubble over his head. **Gotcha for whoever touches this:** a `scene.background` Color forces a colour clear on *every* `renderer.render()`, so the second pass has to null the background or it wipes the city (that cost me 20 minutes).
+
+**People.** Distinct models/cloak tints were already there; added plague behaviour (`people.ts`): while a plague event is active only every third townsperson is drawn, and the dead play `die` then sink + shrink over 4 s before hiding. `talkingAnchor()` feeds a small 💬 bubble over an NPC talking to the hero (only 6 talking flags in the smoke run, so it is rarely on screen).
+
+**HUD.** Memory strip title is now small-caps `memory`, cards smaller, newest first, max 3, hidden when `memory.wrote` is empty (the mock run writes nothing — that is honest, not a bug); the retrieved line lives only in the moment card (blue, or red `— nothing retrieved —`). Moment card reveals 1.2 s after the camera moves and the visitor ring pulses; the stamp uses the engine's own label (`✔ REMEMBERED · 1 SEASON`). End card gained the harness · model line and `H score`. Leaderboard: always-visible pill top-right (chrome on the clock, not a fifth panel), drawer reads `/runs/leaderboard.json` then the engine, renders harness · model / n / H / thin CI bar / $ per life and highlights the current run's harness in gold. Inspector is one line: `world: met in 1346` / `agent: remembers`. Timeline pins show `year · who` on hover. Event banner is limited to plague/war/flood/politics (the smoke run has ~30 active hazard events; the old `find(active)` showed whichever came first) and hides behind the end card.
+
+**Perf.** Pixel ratio <= 1.5, one shadow-map update per frame (`shadowMap.autoUpdate` off for the hero pass), mixers once per frame, crowd still one instanced peg mesh + <= 60 mixers. Not measured in fps — SwiftShader only on this machine.
+
+**Screenshots** (`scripts/screenshot.mjs`): `t0` (follow), `follow_12` (character detail), `t34` (`&view=overview`, plague), the first non-plant moment (`t15` in this run), and the end (`t160`) — the last two are read out of the run's own `frames.json`, so the names follow the run.
+
+**Honest reading of `runs/smoke/screens/` (all five viewed at 1600x900):**
+- `t0.png` / `follow_12.png` — follow zoom reads: individual facades, awnings, lanterns, canals, 3-4 townspeople as recognisable characters. Marco is at the centre under his bubble, as a gold silhouette + ring because he is standing behind a red-roofed house — visible, but you see through the roof, not around it.
+- `t34.png` — overview, olive plague fog, banner `☠ The Black Death reaches Venice`, pulsing red ring over the market district, thinned crowd. Marco visible mid-frame.
+- `t15.png` — payoff card: Orsa Contarini / COOPER / claim / blue `harness retrieved: …` / `agent: pay` / `✔ REMEMBERED · 1 SEASON`.
+- `t160.png` — end card: died at 62, 40 years, 1167 ducats, goals 0/3, memory 5/8, negatives 2/3, $0.00, **H 0.529**, `MOCK:SENSIBLE · MOCK`.
+- Leaderboard drawer and inspector verified separately (`/tmp/ui_leaderboard.png`, `/tmp/ui_inspector.png`): 4 rows incl. `claude-code · claude-sonnet-5 0.599` with CI bars, `mock:sensible` gold; inspector shows `Pietro Vialli / GONDOLIER / world: stranger · agent: no note`.
+- `t126.png` / `t172.png` in that folder are **stale** (previous frames.json where the life ran to t=172); the current run ends at t=160.
+
+**Not done / follow-ups:** no fps measurement on real hardware; the hero silhouette shows through buildings rather than the camera avoiding them; `memory.wrote` is empty for mock runs (W4 note: nothing diffs the Claude Code home yet), so the strip only appears on a claude-code run; leaderboard has no per-delay breakdown; live `?ws=` still untested.
+
+**Verify**
+```
+cd web && npm run build && node ../scripts/screenshot.mjs ../runs/smoke
+```
+```
+dist/assets/three.module-Cii3NInf.js      343.87 kB │ gzip: 83.51 kB │ map:   921.04 kB
+✓ built in 863ms
+saved .../runs/smoke/screens/t0.png
+saved .../runs/smoke/screens/follow_12.png
+saved .../runs/smoke/screens/t34.png
+saved .../runs/smoke/screens/t15.png
+saved .../runs/smoke/screens/t160.png
+$ npx tsc --noEmit -p tsconfig.json
+TSC CLEAN
+```
 
 ### 17:45 — done (F13, F15, J1, J3; supports J4/J6)
 **State** (`web/src/state/`)

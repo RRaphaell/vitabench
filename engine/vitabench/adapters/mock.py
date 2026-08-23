@@ -26,6 +26,8 @@ STOPWORDS = {
 NAME_MIN = 4
 CLAIM_OPTIONS = {"ask_proof"}
 OFFER_OVERLAP = 2
+MEMORY_LINE_MAX = 110
+MEMORY_STRIP = 6
 
 
 def _intent(name: str) -> Intent:
@@ -44,6 +46,14 @@ def _amount(text: str) -> int | None:
     return int(found[0]) if found else None
 
 
+def _line(fact: dict[str, Any]) -> str:
+    text = str(fact["text"]).strip()
+    npc = str(fact["npc"])
+    if npc not in ("news", "") and npc.lower() not in text.lower():
+        text = f"{npc} — {text}"
+    return text if len(text) <= MEMORY_LINE_MAX else text[: MEMORY_LINE_MAX - 1] + "…"
+
+
 class MockAgent:
     def __init__(self, policy: str = "sensible", seed: int = 0) -> None:
         if policy not in POLICIES:
@@ -53,6 +63,7 @@ class MockAgent:
         self.facts: list[dict[str, Any]] = []
         self.persona: Persona | None = None
         self.job: str | None = None
+        self.recalled: list[str] = []
         self.last_usage = None
 
     def on_birth(self, persona: Persona, scenario_brief: str) -> None:
@@ -63,6 +74,17 @@ class MockAgent:
 
     def on_death(self, summary: DeathSummary) -> None:
         self.facts.clear()
+        self.recalled.clear()
+
+    def memory_lines(self) -> list[str]:
+        return [_line(fact) for fact in self.facts[-MEMORY_STRIP:]]
+
+    def _recalls(self, fact: dict[str, Any] | None) -> dict[str, Any] | None:
+        if fact is not None:
+            line = _line(fact)
+            if line not in self.recalled:
+                self.recalled.append(line)
+        return fact
 
     def _remember(self, t: int, npc: str, name: str, text: str, amount: int | None) -> None:
         self.facts.append(
@@ -92,16 +114,16 @@ class MockAgent:
         if not candidates:
             return None
         if claim_amount is None:
-            return candidates[-1]
+            return self._recalls(candidates[-1])
         tolerance = max(1.0, 0.1 * claim_amount)
         exact = [f for f in candidates if f["amount"] and abs(f["amount"] - claim_amount) <= tolerance]
-        return exact[-1] if exact else None
+        return self._recalls(exact[-1]) if exact else None
 
     def _match_offer(self, visitor: Visitor) -> dict[str, Any] | None:
         claim = _tokens(f"{visitor.says} {visitor.npc} {visitor.name}")
         for fact in reversed(self.facts):
             if fact["keys"] & claim or len(fact["content"] & claim) >= OFFER_OVERLAP:
-                return fact
+                return self._recalls(fact)
         return None
 
     def _answer_visitor(self, visitor: Visitor, money: int) -> TalkItem:
@@ -147,13 +169,22 @@ class MockAgent:
             talk=talk,
             rest_weeks=3 if working else 13,
             answers=answers,  # type: ignore[arg-type]
-            diary=f"{observation.date}: {'worked' if working else 'rested'}.",
+            diary=self._diary(observation, working),
+            recall=list(self.recalled),
         )
+
+    def _diary(self, observation: Observation, working: bool) -> str:
+        news = observation.news[0] if observation.news else ""
+        doing = "worked" if working else "rested"
+        return f"{observation.date}: {doing}. {news}".strip()
 
     def _recall(self, question: str) -> str:
         keys = _tokens(question)
         hits = [f for f in self.facts if f["keys"] & keys]
-        return hits[-1]["text"] if hits else "I do not know."
+        if not hits:
+            return "I do not know."
+        self._recalls(hits[-1])
+        return str(hits[-1]["text"])
 
     def _random(self, observation: Observation) -> Plan:
         market = list(observation.market)
@@ -177,6 +208,7 @@ class MockAgent:
         )
 
     def act(self, observation: Observation) -> Plan:
+        self.recalled = []
         if self.policy == "goldfish":
             self.facts.clear()
             return self._sensible(observation)

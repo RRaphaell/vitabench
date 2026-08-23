@@ -25,7 +25,8 @@ ACT_DESCRIPTION = (
     '"moves": ["<place id>"], "eat": "poor|plain|good", "buy": ["<item id>"], '
     '"talk": [{"to": "<npc id>", "intent": "chat|agree|refuse|pay|ask_proof|promise|lend|borrow", '
     '"say": "<words>", "amount": <ducats>}], "rest_weeks": 0-13, '
-    '"answers": [{"question_id": "<id>", "answer": "<text>"}], "diary": "<one line>"}. '
+    '"answers": [{"question_id": "<id>", "answer": "<text>"}], "diary": "<one line worth remembering>", '
+    '"recall": ["the memory lines you used to decide"]}. '
     "Returns the next observation, or {dead: true, summary: {...}} when the life ends."
 )
 

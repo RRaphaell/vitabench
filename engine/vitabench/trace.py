@@ -7,12 +7,37 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from vitabench.schema import AnyFrame, EndFrame, Frame, HelloFrame, MomentFrame, TraceRecord
+from vitabench.schema import AnyFrame, EndFrame, Frame, HelloFrame, MemoryFrame, MomentFrame, TraceRecord
 
 TRACE_NAME = "trace.jsonl"
 META_NAME = "meta.json"
 FRAMES_NAME = "frames.json"
 PROBE_KINDS = ("probe_plant", "probe_payoff", "probe_result")
+RECALL_JOIN = " · "
+KEY_MIN = 3
+
+
+class MemoryLog:
+    def __init__(self) -> None:
+        self.recall: dict[int, list[str]] = {}
+        self.wrote: list[tuple[int, str]] = []
+
+    def add(self, t: int, wrote: Iterable[str], retrieved: Iterable[str]) -> None:
+        lines = [str(line).strip() for line in retrieved if str(line).strip()]
+        if lines:
+            self.recall.setdefault(int(t), []).extend(lines)
+        self.wrote.extend((int(t), str(line).strip()) for line in wrote if str(line).strip())
+
+    def resolve(self, t: int, who: str, npc_id: str) -> tuple[str | None, str | None]:
+        recalled = self.recall.get(int(t)) or []
+        if recalled:
+            return RECALL_JOIN.join(recalled), "recall"
+        keys = {w.lower() for w in who.replace(",", " ").split() if len(w) >= KEY_MIN}
+        keys |= {w for w in npc_id.lower().replace("_", " ").split() if len(w) >= KEY_MIN}
+        for when, line in reversed(self.wrote):
+            if when <= t and any(key in line.lower() for key in keys):
+                return line, "diary"
+        return None, None
 
 
 def new_run_id() -> str:
@@ -158,11 +183,18 @@ def moment_from_payload(payload: dict[str, Any], t: int, record_kind: str = "pro
     )
 
 
-def _moment(record: TraceRecord, superseded: set[str]) -> MomentFrame | None:
-    probe_id = str(record.payload.get("probe_id") or record.payload.get("id") or "")
+def _moment(record: TraceRecord, superseded: set[str], log: MemoryLog) -> MomentFrame | None:
+    payload = record.payload
+    probe_id = str(payload.get("probe_id") or payload.get("id") or "")
     if record.kind == "probe_payoff" and probe_id in superseded:
         return None
-    return moment_from_payload(record.payload, record.t, record.kind)
+    if record.kind != "probe_plant" and not payload.get("retrieved"):
+        retrieved, source = log.resolve(
+            record.t, str(payload.get("who") or ""), str(payload.get("npc") or "")
+        )
+        if retrieved:
+            payload = payload | {"retrieved": retrieved, "retrieved_source": source}
+    return moment_from_payload(payload, record.t, record.kind)
 
 
 def frames_from_trace(records: Iterable[TraceRecord], hello: HelloFrame) -> list[AnyFrame]:
@@ -172,6 +204,14 @@ def frames_from_trace(records: Iterable[TraceRecord], hello: HelloFrame) -> list
         for r in records
         if r.kind == "probe_result"
     }
+    log = MemoryLog()
+    memory_by_t: dict[int, MemoryFrame] = {}
+    for record in records:
+        if record.kind == "memory":
+            wrote = [str(line) for line in record.payload.get("wrote") or []]
+            retrieved = [str(line) for line in record.payload.get("retrieved") or []]
+            memory_by_t[record.t] = MemoryFrame(wrote=wrote, retrieved=retrieved)
+            log.add(record.t, wrote, retrieved)
     frames: list[AnyFrame] = [hello]
     death: dict[str, Any] = {}
     scores: dict[str, Any] = {}
@@ -181,9 +221,13 @@ def frames_from_trace(records: Iterable[TraceRecord], hello: HelloFrame) -> list
         cost += record.cost_usd or 0.0
         last_t = max(last_t, record.t)
         if record.kind == "observation" and record.payload.get("frame"):
-            frames.append(Frame.model_validate(record.payload["frame"]))
+            season = Frame.model_validate(record.payload["frame"])
+            remembered = memory_by_t.get(record.t)
+            if remembered is not None:
+                season = season.model_copy(update={"memory": remembered})
+            frames.append(season)
         elif record.kind in PROBE_KINDS:
-            moment = _moment(record, superseded)
+            moment = _moment(record, superseded, log)
             if moment is not None:
                 frames.append(moment)
         elif record.kind == "death":

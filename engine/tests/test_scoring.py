@@ -4,7 +4,7 @@ from typing import Any
 
 from vitabench.adapters.base import price_for, usage_cost
 from vitabench.schema import TraceRecord
-from vitabench.scoring import CHANCE_DEFAULT, aggregate, score_run
+from vitabench.scoring import CHANCE_DEFAULT, aggregate, chance_from_scores, score_run
 from vitabench.trace import TraceWriter
 
 PERSONA = {"id": "marco", "name": "Marco", "born": 1318, "sex": "male", "job": "ropemaker",
@@ -122,3 +122,13 @@ def test_aggregate_groups_by_harness_with_bootstrap_ci(tmp_path) -> None:
     assert lo <= notes["H"] <= hi
     assert board[1]["M"] == 0.0
     assert aggregate(runs) == board
+
+
+def test_chance_comes_from_mock_random_runs_when_there_are_enough_probes() -> None:
+    random_runs = [{"harness": "mock:random", "memory": {"x": 3, "y": 12}}]
+    chance, source = chance_from_scores(random_runs)
+    assert chance == 0.25 and source.startswith("mock:random")
+    thin, source = chance_from_scores([{"harness": "mock:random", "memory": {"x": 1, "y": 1}}])
+    assert thin == CHANCE_DEFAULT and "need" in source
+    none, source = chance_from_scores([{"harness": "mock:sensible", "memory": {"x": 4, "y": 8}}])
+    assert none == CHANCE_DEFAULT and "no mock:random" in source

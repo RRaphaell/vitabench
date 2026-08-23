@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import math
 from typing import Any
 
-from vitabench.clock import age_at, interpolate_index, is_year_end, label, life_seasons, year_of
+from vitabench import economy
+from vitabench.clock import age_at, is_year_end, label, life_seasons, year_of
 from vitabench.dialogue import activity_for, mother_line, render_observation
 from vitabench.director import STREAM_HAZARD, ScheduledEvent, build_script, rng_for
 from vitabench.npcs import Roster
@@ -26,23 +26,6 @@ from vitabench.schema import (
     TalkItem,
     Visitor,
 )
-
-EAT_TIERS = {"poor": (1, 8, -1), "plain": (2, 13, 0), "good": (4, 16, 1)}
-HUNGER_PER_WEEK = 12
-ENERGY_PER_WORK_WEEK = 8
-IDLE_ENERGY_GAIN = 3
-REST_ENERGY = 9
-REST_HEALTH = 2
-STARVING_HUNGER = 20
-STARVING_HEALTH = 3
-FED_HUNGER = 50
-HEALTH_RECOVERY = 1
-FRAILTY_AGE = 45
-FRAILTY_PER_YEAR = 1.2
-MIN_HEALTH_CAP = 30
-GOMPERTZ_A = 0.0005
-GOMPERTZ_B = 0.085
-PLAGUE_HAZARD_MULT = 6.0
 
 
 def _probe_hook(name: str):
@@ -93,6 +76,7 @@ class World:
         self.met: set[str] = set()
         self.last_plan: Plan | None = None
         self.season_events: list[dict[str, Any]] = []
+        self.probe_records: list[dict[str, Any]] = []
         self.rng = rng_for(spec.id, seed, STREAM_HAZARD)
         self._enter_season()
 
@@ -101,8 +85,6 @@ class World:
             if p.id == persona_id:
                 return p
         raise KeyError(f"unknown persona {persona_id!r} in scenario {self.spec.id!r}")
-
-    # ---------- derived state ----------
 
     @property
     def debts(self) -> list[DebtState]:
@@ -128,14 +110,13 @@ class World:
         return any(ev.kind == "plague" for ev in self.active_events)
 
     def market(self) -> dict[str, int]:
-        f = interpolate_index(self.spec.economy.price_index, self.year) * self.event_mult("price_mult")
-        return {i.id: max(1, round(i.price * f)) for i in self.items.values()}
+        return economy.market_prices(
+            self.items.values(), self.spec.economy.price_index, self.year, self.event_mult("price_mult")
+        )
 
     def place_name(self, place_id: str) -> str:
         place = self.places.get(place_id)
         return place.name if place else place_id
-
-    # ---------- observation ----------
 
     def observe(self) -> Observation:
         for debt in self.state.debts:
@@ -173,12 +154,12 @@ class World:
                 convos.append(Conversation(npc="mother", says=mother_line(self.t)))
         return convos
 
-    # ---------- stepping ----------
-
     def step_season(self, plan: Plan) -> list[dict[str, Any]]:
         if not self.alive:
             return []
         self.last_plan = plan
+        if plan.diary.strip():
+            self.memory_lines.append(plan.diary.strip())
         job = self._plan_job(plan)
         work_weeks = min(plan.work.weeks if plan.work else 0, WEEKS_PER_SEASON) if job else 0
         moves = [m for m in plan.moves if m in self.places][: WEEKS_PER_SEASON - work_weeks]
@@ -186,33 +167,13 @@ class World:
         if plan.main == Main.seek_job and job is not None:
             self.state.job = job.id
             self._log("seek_job", target=job.id)
-        cost, hunger_gain, health_gain = EAT_TIERS[plan.eat]
-        bread_price = self.market().get("bread", 1)
         illness_p = float(self.spec.hazards.get("illness", 0.0)) * self.event_mult("illness_mult")
         wage_mult = self.event_mult("wage_mult") * self.event_mult("trade_mult")
-        wages = 0
-        food = 0
-        for w in range(WEEKS_PER_SEASON):
-            phase = w - work_weeks
-            if w < work_weeks and job is not None:
-                wages += self._work_week(job, wage_mult)
-            elif phase < len(moves):
-                self.state.at = moves[phase]
-                self.state.energy -= 2
-            elif phase < len(moves) + rest_weeks:
-                self.state.energy += REST_ENERGY
-                self.state.health += REST_HEALTH
-            else:
-                self.state.energy += IDLE_ENERGY_GAIN
-            food += self._eat_week(cost * bread_price, hunger_gain, health_gain)
-            self.state.hunger -= HUNGER_PER_WEEK
-            if self.state.hunger < STARVING_HUNGER:
-                self.state.health -= STARVING_HEALTH
-            elif self.state.hunger >= FED_HUNGER:
-                self.state.health += HEALTH_RECOVERY
-            if self.rng.random() < illness_p:
-                self.state.health -= 8
-            self._clamp()
+        sick = [bool(self.rng.random() < illness_p) for _ in range(WEEKS_PER_SEASON)]
+        wages, food = economy.run_weeks(
+            self.state, job, work_weeks, moves, rest_weeks, economy.EAT_TIERS[plan.eat],
+            self.market().get("bread", 1), wage_mult, sick, self.health_cap(),
+        )
         if work_weeks and job is not None:
             self._log("work", target=job.id, amount=wages)
         for move in moves:
@@ -236,46 +197,13 @@ class World:
 
     def _plan_job(self, plan: Plan) -> Job | None:
         wanted = (plan.work.job if plan.work else None) or self.state.job
-        job = self.jobs.get(wanted or "")
-        if job is None:
-            if plan.main in (Main.work, Main.seek_job):
-                self._log("work_failed", target=wanted)
-            return None
-        for key, need in job.requires.items():
-            if getattr(self.state, key, 0) < need:
-                self._log("work_failed", target=job.id, amount=need)
-                return None
+        job, failure = economy.pick_job(self.jobs, self.state, wanted)
+        if failure and (failure.get("amount") is not None or plan.main in (Main.work, Main.seek_job)):
+            self._log("work_failed", **failure)
         return job
 
-    def _work_week(self, job: Job, wage_mult: float) -> int:
-        wage = max(0, round(job.wage_week * wage_mult))
-        self.state.money += wage
-        self.state.energy += job.energy_week or -ENERGY_PER_WORK_WEEK
-        self.state.health += job.health_week
-        return wage
-
-    def _eat_week(self, price: int, hunger_gain: int, health_gain: int) -> int:
-        if self.state.money < price:
-            return 0
-        self.state.money -= price
-        self.state.hunger += hunger_gain
-        self.state.health += health_gain
-        return price
-
     def _buy(self, buy: list[str]) -> None:
-        prices = self.market()
-        for item_id in buy:
-            item = self.items.get(item_id)
-            if item is None or self.state.money < prices.get(item_id, item.price if item else 0):
-                continue
-            price = prices[item_id]
-            self.state.money -= price
-            for key, value in item.effects.items():
-                if key == "asset":
-                    if value not in self.state.assets:
-                        self.state.assets.append(str(value))
-                elif isinstance(value, int | float):
-                    setattr(self.state, key, getattr(self.state, key, 0) + int(value))
+        for item_id, price in economy.buy_items(self.state, buy, self.items, self.market()):
             self._log("buy", target=item_id, amount=price)
         self._clamp()
 
@@ -283,60 +211,25 @@ class World:
         npc = self.roster.get(item.to)
         creditor = any(d.to == item.to for d in self.state.debts)
         target = item.to if creditor or npc is None else npc.id
-        amount = item.amount
-        if item.intent == Intent.pay:
-            amount = amount or self._owed_to(target)
-            paid = min(self.state.money, max(0, amount))
-            self.state.money -= paid
-            self._settle(target, paid)
-            amount = paid
-        elif item.intent == Intent.lend and amount:
-            amount = min(self.state.money, amount)
-            self.state.money -= amount
-        elif item.intent == Intent.borrow and amount:
-            self.state.money += amount
-            self.state.debts.append(DebtState(to=target, amount=amount, due_year=self.year + 2))
+        amount = economy.apply_talk(self.state, target, item.intent, item.amount, self.year)
         if npc is not None:
             self.met.add(npc.id)
             delta = {Intent.pay: 0.1, Intent.agree: 0.05, Intent.refuse: -0.1, Intent.promise: 0.05}
             npc.trust = round(min(1.0, max(0.0, npc.trust + delta.get(item.intent, 0.01))), 3)
         self._log("talk", target=target, amount=amount, intent=item.intent.value)
 
-    def _owed_to(self, target: str) -> int:
-        return sum(d.amount for d in self.state.debts if d.to == target)
-
-    def _settle(self, target: str, paid: int) -> None:
-        left = paid
-        for debt in list(self.state.debts):
-            if debt.to != target or left <= 0:
-                continue
-            take = min(debt.amount, left)
-            debt.amount -= take
-            left -= take
-            if debt.amount <= 0:
-                self.state.debts.remove(debt)
-
     def health_cap(self) -> int:
-        return max(MIN_HEALTH_CAP, round(100 - max(0, self.age - FRAILTY_AGE) * FRAILTY_PER_YEAR))
+        return economy.health_cap(self.age)
 
     def _clamp(self) -> None:
-        self.state.health = max(0, min(self.health_cap(), self.state.health))
-        self.state.energy = max(0, min(100, self.state.energy))
-        self.state.hunger = max(0, min(100, self.state.hunger))
-        self.state.money = max(0, self.state.money)
-
-    # ---------- events, probes, death ----------
+        economy.clamp(self.state, self.health_cap())
 
     def _sync_active(self) -> None:
         self.active_events = [ev for ev in self.script if ev.active_at(self.t)]
 
     def _fire(self, ev: ScheduledEvent) -> None:
         effects = ev.effects
-        for key in ("health", "energy", "hunger"):
-            if key in effects:
-                setattr(self.state, key, getattr(self.state, key) + int(effects[key]))
-        if "money_frac" in effects:
-            self.state.money += round(self.state.money * float(effects["money_frac"]))
+        economy.apply_event_effects(self.state, effects)
         dead = self.roster.plague_deaths(float(effects.get("npc_death_rate", 0.0)), self.t, self.rng)
         self._clamp()
         self.pending_news.append(ev.text)
@@ -355,8 +248,15 @@ class World:
 
     def _call_probe(self, name: str) -> None:
         hook = _probe_hook(name)
-        if hook is not None:
-            hook(self)
+        if hook is None:
+            return
+        records = hook(self)
+        if records:
+            self.probe_records.extend(records)
+
+    def drain_probe_records(self) -> list[dict[str, Any]]:
+        drained, self.probe_records = self.probe_records, []
+        return drained
 
     def _death_check(self) -> None:
         if self.state.health <= 0:
@@ -364,9 +264,7 @@ class World:
             return
         if not is_year_end(self.t):
             return
-        era = PLAGUE_HAZARD_MULT if self.in_plague() else 1.0
-        hazard = GOMPERTZ_A * math.exp(GOMPERTZ_B * (self.age - 20)) * era
-        if self.rng.random() < min(1.0, hazard):
+        if self.rng.random() < economy.mortality_hazard(self.age, self.in_plague()):
             self._die("plague" if self.in_plague() else "old age")
 
     def _die(self, cause: str) -> None:
@@ -380,27 +278,8 @@ class World:
             {"t": self.t, "kind": kind, "target": target, "amount": amount, "intent": intent}
         )
 
-    # ---------- summaries ----------
-
     def goals_met(self) -> list[str]:
-        met: list[str] = []
-        children = [c for c in self.persona.family.get("children", []) if isinstance(c, dict)]
-        for goal in self.persona.goals:
-            ok = True
-            for key, want in goal.check.items():
-                if key == "asset":
-                    ok &= want in self.state.assets
-                elif key == "debt":
-                    ok &= sum(d.amount for d in self.state.debts) <= int(want)
-                elif key == "children_alive":
-                    ok &= len([c for c in children if c.get("alive", True)]) >= int(want)
-                elif key == "job":
-                    ok &= self.state.job == want
-                else:
-                    ok &= getattr(self.state, key, 0) >= int(want)
-            if ok:
-                met.append(goal.id)
-        return met
+        return economy.goals_met(self.persona, self.state)
 
     def death_summary(self) -> DeathSummary:
         return DeathSummary(
