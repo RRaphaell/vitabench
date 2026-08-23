@@ -6,7 +6,8 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-LABELS = {"claude-code": "claude code · memory.md", "mock:sensible": "scripted baseline", "mock:random": "random plans", "mock:goldfish": "goldfish · no memory"}
+LABELS = {"claude-code": "claude code", "claude-code/caterina": "claude code · caterina", "mock:sensible": "scripted baseline", "mock:random": "random plans", "mock:goldfish": "goldfish · no memory"}
+MODELS = {"claude-sonnet-5": "sonnet 5", "claude-opus-5": "opus 5"}
 
 
 def row(entry: dict) -> str:
@@ -16,6 +17,8 @@ def row(entry: dict) -> str:
     ci_txt = f" [{h_ci[0]:.2f}, {h_ci[1]:.2f}]" if isinstance(h_ci, (list, tuple)) and len(h_ci) == 2 else ""
     cost = entry.get("cost_usd") or entry.get("cost") or 0.0
     label = LABELS.get(entry.get("harness", ""), entry.get("harness", ""))
+    model = MODELS.get(entry.get("model", ""))
+    label = f"{label} · {model}" if model else label
     return (f'      <div class="row"><span>{label}</span><span>{entry.get("n", 0)}</span>'
             f'<span>{h:.2f}{ci_txt} <i class="bar" style="width:{h * 10:.1f}vw"></i></span><span>${cost:.2f}</span></div>')
 
