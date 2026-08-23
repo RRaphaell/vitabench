@@ -44,6 +44,13 @@ Memory pass rate by delay (Claude Code): 1 season 0.00 · 1 year 0.75 · 10 year
 
 What the traces say: three of four Sonnet lives ended at 31 in the aftermath of the 1348 plague (two of illness, one of starvation after choosing to rest through the price shock); the fourth lived to 63 and was bankrupted by the War of Chioggia. The agent's own `memory.md` shows it *generalizing* the negatives — "the Vialli family runs recurring cons… default posture: assume a con, refuse" — which is why it rejected every false claim. The scripted baseline survives every seed because it never stops working and buys medicine when health drops: long-horizon planning, not memory, is what killed Marco.
 
+## Limitations (read before citing a number)
+- One city, one persona, one model, n ≤ 6 per harness. The CIs are wide on purpose.
+- Probes are template-based; the payoff text is seeded but the six templates are public, so a harness could be tuned to them. Hidden test seeds and new templates are the next step.
+- "Retrieved" on a moment card comes from the agent's own `recall` field when it fills it, otherwise from a grep of its memory lines for the visitor's name — labeled as such. It is evidence of what the harness held, not a causal trace.
+- The world v0 double-counted the 1348 price shock (fixed in v1 before the leaderboard runs; v0 traces are kept under `runs/v0/`).
+- Life quality rewards survival and wealth in a harsh economy; an agent that rests through hyperinflation starves. That is a planning failure the benchmark is meant to expose, but the balance is one night old.
+
 ## Repo
 `engine/` Python 3.12 package (`uv sync && uv run pytest`) · `web/` Vite + Three.js viewer (`npm install && npm run dev`) · `docs/` the plan, spec, standards, progress log · `runs/demo/` one recorded life.
 
