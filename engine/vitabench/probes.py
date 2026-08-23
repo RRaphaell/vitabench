@@ -86,6 +86,24 @@ def _apply_effects(world: Any, probe: Probe) -> None:
             )
 
 
+
+def _role_for(kind: str, probe: Probe) -> str:
+    channel = probe.slots.get("plant_channel" if kind == "plant" else "payoff_channel")
+    if channel == "news":
+        return "news"
+    if channel == "mother":
+        return "mother"
+    if kind == "plant":
+        return str(probe.slots.get("npc_role", ""))
+    return "stranger" if probe.slots.get("negative") else f"kin of {probe.slots.get('npc', '')}"
+
+
+def _action_label(entry: dict[str, Any]) -> str:
+    if entry.get("kind") == "move":
+        return f"went to {entry.get('target')}"
+    return str(entry.get("intent") or entry.get("target") or "acted")
+
+
 def record_for(kind: str, probe: Probe, **over: Any) -> dict[str, Any]:
     negative = bool(probe.slots.get("negative"))
     label = delay_label(probe.delay_seasons)
@@ -105,10 +123,7 @@ def record_for(kind: str, probe: Probe, **over: Any) -> dict[str, Any]:
         "type": probe.type,
         "t": probe.plant_t if kind == "plant" else probe.payoff_t,
         "who": probe.slots["plant_who"] if kind == "plant" else probe.slots["payoff_who"],
-        "role": (
-            probe.slots.get("npc_role", "") if kind == "plant"
-            else ("stranger" if probe.slots.get("negative") else f"kin of {probe.slots.get('npc', '')}")
-        ),
+        "role": _role_for(kind, probe),
         "claim": probe.plant_text if kind == "plant" else probe.payoff_text,
         "action": probe.action_taken or "",
         "ok": probe.passed,
@@ -231,8 +246,7 @@ def check_due(world: Any) -> list[dict[str, Any]]:
         expected = _expected(probe)
         hit = next((e for e in entries if _hit(e, probe, expected)), None)
         if hit is not None:
-            action = str(hit.get("intent") or hit.get("target") or "acted")
-            out.append(_resolve(probe, True, action))
+            out.append(_resolve(probe, True, _action_label(hit)))
             continue
         if probe.slots["negative"]:
             wrong = next((e for e in entries if _hit(e, probe, list(ACCEPTING_INTENTS))), None)

@@ -173,8 +173,9 @@ def _moment(record: TraceRecord, superseded: set[str], log: MemoryLog) -> Moment
     if record.kind == "probe_payoff" and probe_id in superseded:
         return None
     if record.kind != "probe_plant":
+        claim_names = " ".join(w for w in str(payload.get("claim") or "").replace("'", " ").split() if w[:1].isupper())
         retrieved, source = log.resolve(
-            record.t, str(payload.get("who") or ""), str(payload.get("npc") or "")
+            record.t, f"{payload.get('who') or ''} {claim_names}", str(payload.get("npc") or "")
         )
         if retrieved and (source != "recall" or not payload.get("retrieved")):
             payload = payload | {"retrieved": retrieved, "retrieved_source": source}

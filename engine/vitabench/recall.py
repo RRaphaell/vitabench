@@ -8,7 +8,7 @@ RECALL_JOIN = " · "
 GREP_SOURCE = "memory-grep"
 GREP_MAX = 1
 KEY_MIN = 4
-STOPWORDS = frozenset({"the", "and", "for", "from", "san", "del", "della", "your", "said", "says"})
+STOPWORDS = frozenset({"the", "and", "for", "from", "san", "del", "della", "your", "said", "says", "marco", "criers", "again"})
 
 
 def clean_line(raw: str) -> str:
